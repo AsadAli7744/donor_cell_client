@@ -266,6 +266,46 @@ const buildSuperAdminComplaintsGroup = () => ({
 
 const programDepartmentItems = (isUser = false) => [
   {
+    label: 'Welfare Overview',
+    path: '/dms/aid/overview',
+    type: 'list',
+    module: 'aid_overview',
+    permissionDepartment: 'program',
+    icon: FiBarChart2,
+  },
+  {
+    label: 'Data Entry',
+    path: '/dms/aid/applications/entry/list',
+    type: 'list',
+    module: 'aid_applications',
+    permissionDepartment: 'program',
+    icon: FiClipboard,
+  },
+  {
+    label: 'Case Review',
+    path: '/dms/aid/applications/list',
+    type: 'list',
+    module: 'aid_applications',
+    permissionDepartment: 'program',
+    icon: FiLifeBuoy,
+  },
+  {
+    label: 'Approvals',
+    path: '/dms/aid/applications/approvals',
+    type: 'list',
+    module: 'aid_applications',
+    permissionDepartment: 'program',
+    icon: FiCheckCircle,
+  },
+  {
+    label: 'Beneficiaries',
+    path: '/dms/aid/people/list',
+    type: 'list',
+    module: 'aid_people',
+    permissionDepartment: 'program',
+    icon: FiUsers,
+  },
+  {
     label: 'Tasking',
     path: '/tasks/list',
     type: 'list',
@@ -1233,7 +1273,8 @@ const canAccessSidebarEntry = (permissions, department, item, parentModule = nul
   }
 
   const moduleKey = item.module || parentModule;
-  const permDept = permissionDepartmentFor(department);
+  const permDept =
+    item.permissionDepartment || permissionDepartmentFor(department);
 
   // Explicit action (e.g. manage_overview) — must be granted on the module
   if (item.action) {
@@ -1251,7 +1292,7 @@ const canAccessSidebarEntry = (permissions, department, item, parentModule = nul
 
   // Module-level visibility (view / list_view)
   if (moduleKey) {
-    return canViewModule(permissions, department, moduleKey);
+    return canViewModule(permissions, permDept, moduleKey);
   }
 
   // No module/action: keep for backward compatibility

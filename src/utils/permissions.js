@@ -15,9 +15,31 @@ export const hasPermission = (permissions, department, module, action) => {
   if (!permissions || !department || !module || !action) {
     return false;
   }
-  
-  return permissions[department]?.[module]?.[action] === true;
+
+  if (permissions[department]?.[module]?.[action] === true) {
+    return true;
+  }
+
+  // Aid Overview / Applications / Beneficiaries: program.aid_* also accepts fund_raising.aid_*
+  if (
+    (module === 'aid_people' ||
+      module === 'aid_applications' ||
+      module === 'aid_overview') &&
+    (department === 'program' || department === 'fund_raising')
+  ) {
+    const other = department === 'program' ? 'fund_raising' : 'program';
+    return permissions[other]?.[module]?.[action] === true;
+  }
+
+  return false;
 };
+
+/**
+ * Aid Overview / Applications / Beneficiaries — program.aid_* (primary) or fund_raising.aid_*.
+ */
+export const hasAidPermission = (permissions, module, action) =>
+  hasPermission(permissions, 'program', module, action) ||
+  hasPermission(permissions, 'fund_raising', module, action);
 
 /**
  * Check if user has any permission for a specific module
@@ -82,6 +104,43 @@ export const canViewModule = (permissions, department, module) => {
       permissions.fund_raising?.manager === true)
   ) {
     return true;
+  }
+
+  // Aid Overview / Applications / Beneficiaries under Program (legacy fund_raising.aid_* still counts)
+  if (
+    (department === 'program' || department === 'fund_raising') &&
+    (module === 'aid_people' ||
+      module === 'aid_applications' ||
+      module === 'aid_overview')
+  ) {
+    if (
+      permissions.program_manager === true ||
+      permissions.fund_raising_manager === true ||
+      permissions.fund_raising?.manager === true
+    ) {
+      return true;
+    }
+    const next = permissions.program?.[module];
+    const legacy = permissions.fund_raising?.[module];
+    if (next?.view === true || next?.list_view === true) return true;
+    if (legacy?.view === true || legacy?.list_view === true) return true;
+    if (module === 'aid_applications') {
+      if (
+        next?.ceo_approve === true ||
+        next?.deliver === true ||
+        next?.bulk_verify === true
+      ) {
+        return true;
+      }
+      if (
+        legacy?.ceo_approve === true ||
+        legacy?.deliver === true ||
+        legacy?.bulk_verify === true
+      ) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // CSR donors / CSR POCs share access in sidebar when either submodule is granted
@@ -250,13 +309,37 @@ export const hasPermissionByPath = (permissions, permissionPath) => {
 
   for (const part of pathParts) {
     if (current === null || current === undefined || typeof current !== 'object') {
+      if (
+        (pathParts[0] === 'program' || pathParts[0] === 'fund_raising') &&
+        (pathParts[1] === 'aid_people' ||
+          pathParts[1] === 'aid_applications' ||
+          pathParts[1] === 'aid_overview') &&
+        pathParts[2]
+      ) {
+        const other =
+          pathParts[0] === 'program' ? 'fund_raising' : 'program';
+        return permissions[other]?.[pathParts[1]]?.[pathParts[2]] === true;
+      }
       return false;
     }
     current = current[part];
   }
 
-  // Check if the final value is true
-  return current === true;
+  if (current === true) return true;
+
+  if (
+    (pathParts[0] === 'program' || pathParts[0] === 'fund_raising') &&
+    (pathParts[1] === 'aid_people' ||
+      pathParts[1] === 'aid_applications' ||
+      pathParts[1] === 'aid_overview') &&
+    pathParts[2]
+  ) {
+    const other =
+      pathParts[0] === 'program' ? 'fund_raising' : 'program';
+    return permissions[other]?.[pathParts[1]]?.[pathParts[2]] === true;
+  }
+
+  return false;
 };
 
 /**
@@ -323,6 +406,7 @@ export const hasAnyPermission = (permissions, requiredPermissions) => {
 
 export default {
   hasPermission,
+  hasAidPermission,
   hasModuleAccess,
   hasDepartmentAccess,
   canViewModule,

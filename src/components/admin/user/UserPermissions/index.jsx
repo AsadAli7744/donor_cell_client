@@ -137,19 +137,6 @@ const UserPermissions = ({ user, onSave, onCancel, isOpen }) => {
           label: 'CSR POCs',
           actions: ['create', 'list_view', 'view', 'update', 'delete']
         },
-        // Enable later — Beneficiary Aid Applications (Phase 1)
-        // aid_people: {
-        //   label: 'Aid People',
-        //   actions: ['create', 'list_view', 'view', 'update', 'delete']
-        // },
-        // aid_applications: {
-        //   label: 'Aid Applications',
-        //   actions: ['create', 'list_view', 'view', 'update', 'delete', 'ceo_approve', 'deliver']
-        // },
-        // donations_report: {
-        //   label: 'Donations Report',
-        //   actions: ['send', 'receive']
-        // },
         dashboard: {
           label: 'Dashboard',
           actions: ['view']
@@ -254,7 +241,27 @@ const UserPermissions = ({ user, onSave, onCancel, isOpen }) => {
     program: {
       label: 'Program',
       submodules: {
-        
+        aid_overview: {
+          label: 'Welfare Overview',
+          actions: ['view'],
+        },
+        aid_applications: {
+          label: 'Applications',
+          actions: [
+            'create',
+            'list_view',
+            'view',
+            'update',
+            'delete',
+            'ceo_approve',
+            'deliver',
+            'bulk_verify',
+          ],
+        },
+        aid_people: {
+          label: 'Beneficiaries',
+          actions: ['create', 'list_view', 'view', 'update', 'delete'],
+        },
         progress_tracking: {
           label: 'Progress Tracking',
           actions: ['create', 'list_view', 'view', 'update', 'delete']
@@ -578,6 +585,9 @@ const UserPermissions = ({ user, onSave, onCancel, isOpen }) => {
     bypass_location: 'Bypass location (GPS + territory filter)',
     completing: 'Completing',
     reconciler: 'Reconciler (verify / change status)',
+    ceo_approve: 'CEO Approve',
+    deliver: 'Deliver',
+    bulk_verify: 'Bulk verify checklist',
   };
 
   const initializePermissions = () => {

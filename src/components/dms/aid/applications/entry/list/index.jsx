@@ -1,0 +1,278 @@
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FiEye } from 'react-icons/fi';
+import axiosInstance from '../../../../../../utils/axios';
+import { useAuth } from '../../../../../../context/AuthContext';
+import {
+  canViewModule,
+  hasAidPermission,
+} from '../../../../../../utils/permissions';
+import Navbar from '../../../../../Navbar';
+import PageHeader from '../../../../../common/PageHeader';
+import Pagination from '../../../../../common/Pagination';
+import {
+  SearchFilter,
+  DropdownFilter,
+  SearchButton,
+  ClearButton,
+  CollapsibleFilters,
+} from '../../../../../common/filters';
+import useFiltersPanel from '../../../../../../hooks/useFiltersPanel';
+import {
+  AID_STATUS_OPTIONS,
+  aidStatusTone,
+  formatAidStatus,
+  formatAidRequestType,
+} from '../../../aidConstants';
+import '../../../aid.css';
+
+/**
+ * Data-entry listing — simple view of what was entered (no investigation actions).
+ */
+const AidEntryApplicationsList = () => {
+  const navigate = useNavigate();
+  const { permissions } = useAuth();
+  const { filtersOpen, toggleFilters } = useFiltersPanel();
+
+  const isStaffElevated =
+    !!permissions?.super_admin ||
+    !!permissions?.program_manager ||
+    !!permissions?.fund_raising_manager;
+
+  const canList =
+    canViewModule(permissions, 'program', 'aid_applications') ||
+    hasAidPermission(permissions, 'aid_applications', 'create') ||
+    isStaffElevated;
+
+  const canCreate =
+    hasAidPermission(permissions, 'aid_applications', 'create') ||
+    isStaffElevated;
+
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [sortField, setSortField] = useState('created_at');
+  const [sortOrder, setSortOrder] = useState('DESC');
+  const [tempFilters, setTempFilters] = useState({ search: '', status: '' });
+  const [appliedFilters, setAppliedFilters] = useState({
+    search: '',
+    status: '',
+  });
+
+  const handleSortChange = (field, order) => {
+    setSortField(field);
+    setSortOrder(order);
+    setCurrentPage(1);
+  };
+
+  const sortOptions = [
+    { value: 'created_at', label: 'Created Date' },
+    { value: 'updated_at', label: 'Updated Date' },
+    { value: 'status', label: 'Status' },
+    { value: 'application_no', label: 'Application Number' },
+    { value: 'id', label: 'ID' },
+  ];
+
+  const applyFilters = (next) => {
+    setTempFilters(next);
+    setAppliedFilters(next);
+    setCurrentPage(1);
+  };
+
+  const fetchRows = async () => {
+    if (!canList) {
+      setError('You do not have permission to view aid applications.');
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      setError('');
+      const res = await axiosInstance.get('/aid/applications', {
+        params: {
+          search: appliedFilters.search || undefined,
+          status: appliedFilters.status || undefined,
+          page: currentPage,
+          pageSize,
+          sortField,
+          sortOrder,
+        },
+      });
+      setRows(res.data?.data || []);
+      setTotalItems(res.data?.total || 0);
+      setTotalPages(res.data?.totalPages || 1);
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to load applications');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, pageSize, sortField, sortOrder, appliedFilters]);
+
+  return (
+    <>
+      <Navbar />
+      <div className="list-wrapper aid-list">
+        <PageHeader
+          title="Application Data Entry"
+          backPath="/dms"
+          showAdd={!!canCreate}
+          addPath="/dms/aid/applications/add"
+          addTitle="New application"
+          showFilterToggle
+          filtersOpen={filtersOpen}
+          onFilterToggle={toggleFilters}
+        />
+        <div className="list-content">
+          {error && <div className="error-message">{error}</div>}
+
+          <p className="aid-entry-list-hint">
+            Simple listing of entered application data. Investigation, CEO
+            approval, and delivery stay on{' '}
+            <button
+              type="button"
+              className="aid-text-link"
+              onClick={() => navigate('/dms/aid/applications/list')}
+            >
+              Case review
+            </button>
+            .
+          </p>
+
+          <CollapsibleFilters open={filtersOpen}>
+            <div className="filters-row">
+              <SearchFilter
+                filterKey="search"
+                label="Search"
+                filters={tempFilters}
+                onFilterChange={(k, v) =>
+                  setTempFilters((p) => ({ ...p, [k]: v }))
+                }
+                placeholder="App no, name, CNIC…"
+              />
+              <DropdownFilter
+                filterKey="status"
+                label="Status"
+                data={AID_STATUS_OPTIONS}
+                filters={tempFilters}
+                onFilterChange={(k, v) =>
+                  setTempFilters((p) => ({ ...p, [k]: v }))
+                }
+                placeholder="All"
+              />
+              <SearchButton
+                onClick={() => {
+                  setCurrentPage(1);
+                  setAppliedFilters({ ...tempFilters });
+                }}
+              />
+              <ClearButton
+                onClick={() => {
+                  applyFilters({ search: '', status: '' });
+                }}
+              />
+            </div>
+          </CollapsibleFilters>
+
+          <div className="table-container">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Application</th>
+                  <th>Beneficiary</th>
+                  <th>Aid type</th>
+                  <th>Status</th>
+                  <th>Entered by</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td colSpan={6}>Loading…</td>
+                  </tr>
+                ) : rows.length === 0 ? (
+                  <tr>
+                    <td colSpan={6}>No applications found.</td>
+                  </tr>
+                ) : (
+                  rows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.application_no}</strong>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>
+                          {row.title || '—'}
+                        </div>
+                      </td>
+                      <td>{row.beneficiary?.full_name || '—'}</td>
+                      <td>{formatAidRequestType(row.requested_aid_type)}</td>
+                      <td>
+                        <span
+                          className={`aid-status-pill aid-status-pill--${aidStatusTone(
+                            row.status,
+                          )}`}
+                        >
+                          {formatAidStatus(row.status)}
+                        </span>
+                      </td>
+                      <td>
+                        {row.created_by
+                          ? [row.created_by.first_name, row.created_by.last_name]
+                              .filter(Boolean)
+                              .join(' ') ||
+                            row.created_by.email ||
+                            '—'
+                          : '—'}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="secondary-btn"
+                          onClick={() =>
+                            navigate(
+                              `/dms/aid/applications/entry/view/${row.id}`,
+                            )
+                          }
+                        >
+                          <FiEye /> View entry
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {totalItems > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(n) => {
+                setPageSize(n);
+                setCurrentPage(1);
+              }}
+              onSortChange={handleSortChange}
+              sortField={sortField}
+              sortOrder={sortOrder}
+              sortOptions={sortOptions}
+            />
+          )}
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default AidEntryApplicationsList;

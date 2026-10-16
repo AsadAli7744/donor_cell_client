@@ -1,0 +1,483 @@
+.aid-welfare-overview {
+  --wo-bg: #f4f1ea;
+  --wo-card: #ffffff;
+  --wo-ink: #14231b;
+  --wo-muted: #6b7280;
+  --wo-green: #1f5c3f;
+  --wo-green-soft: #dce8e0;
+  --wo-danger: #b91c1c;
+  --wo-warn: #c2410c;
+  --wo-warn-bg: #ffedd5;
+  --wo-danger-bg: #fee2e2;
+  padding: 0 1.25rem 2rem;
+  background: var(--wo-bg);
+  min-height: calc(100vh - 64px);
+}
+
+.aid-welfare-overview .page-header,
+.aid-welfare-overview .form-content {
+  background: transparent;
+}
+
+.aid-wo-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  margin: 0.25rem 0 1rem;
+}
+
+.aid-wo-crumb {
+  font-size: 0.78rem;
+  color: var(--wo-muted);
+  margin-bottom: 0.15rem;
+}
+
+.aid-wo-sub {
+  margin: 0;
+  color: var(--wo-muted);
+  font-size: 0.9rem;
+}
+
+.aid-wo-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  align-items: flex-end;
+}
+
+.aid-wo-filters .form-group {
+  margin: 0;
+  min-width: 140px;
+}
+
+.aid-wo-filters .date-filter-container {
+  min-width: 160px;
+}
+
+.aid-wo-filters .date-range-filter-container {
+  min-width: 280px;
+}
+
+.aid-wo-filters .date-filter-label,
+.aid-wo-filters .date-range-filter-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--wo-muted);
+}
+
+.aid-wo-filters .date-filter-input,
+.aid-wo-filters .date-range-filter-input {
+  height: 38px;
+  padding: 0.35rem 0.65rem;
+  font-size: 0.875rem;
+}
+
+.aid-wo-export {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  color: var(--wo-ink);
+  border-radius: 8px;
+  padding: 0.55rem 0.85rem;
+  font-weight: 650;
+  cursor: pointer;
+  height: 38px;
+}
+
+.aid-wo-loading {
+  padding: 1rem;
+  color: var(--wo-muted);
+}
+
+.aid-wo-kpis {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.aid-wo-kpi {
+  background: var(--wo-card);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: 0 1px 0 rgba(20, 35, 27, 0.04);
+}
+
+.aid-wo-kpi__label {
+  font-size: 0.68rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--wo-muted);
+}
+
+.aid-wo-kpi__value {
+  margin-top: 0.35rem;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--wo-ink);
+  line-height: 1.1;
+}
+
+.aid-wo-kpi__meta {
+  margin-top: 0.35rem;
+  font-size: 0.78rem;
+  color: var(--wo-muted);
+}
+
+.aid-wo-kpi__meta.is-late {
+  color: var(--wo-danger);
+  font-weight: 650;
+}
+
+.aid-wo-up {
+  color: var(--wo-green);
+  font-weight: 650;
+}
+
+.aid-wo-down {
+  color: var(--wo-danger);
+  font-weight: 650;
+}
+
+.aid-wo-grid-2 {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.aid-wo-grid-2--attention {
+  grid-template-columns: 1fr 1fr;
+}
+
+.aid-wo-card {
+  background: var(--wo-card);
+  border-radius: 14px;
+  padding: 1rem 1.1rem 1.1rem;
+  box-shadow: 0 1px 0 rgba(20, 35, 27, 0.04);
+}
+
+.aid-wo-card__head {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-bottom: 0.85rem;
+}
+
+.aid-wo-card__head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 750;
+  color: var(--wo-ink);
+}
+
+.aid-wo-card__head span {
+  font-size: 0.78rem;
+  color: var(--wo-muted);
+}
+
+.aid-wo-funnel {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.aid-wo-funnel__row {
+  display: grid;
+  grid-template-columns: 110px 1fr 70px;
+  gap: 0.55rem;
+  align-items: center;
+}
+
+.aid-wo-funnel__label {
+  font-size: 0.84rem;
+  color: #334155;
+}
+
+.aid-wo-funnel__track {
+  height: 18px;
+  background: #eef2ef;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.aid-wo-funnel__bar {
+  height: 100%;
+  background: var(--wo-green);
+  border-radius: 6px;
+}
+
+.aid-wo-funnel__count {
+  font-weight: 750;
+  text-align: right;
+  font-size: 0.9rem;
+}
+
+.aid-wo-funnel__drop {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 650;
+  color: #94a3b8;
+}
+
+.aid-wo-pipeline-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  margin-top: 0.9rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #eef2f0;
+  font-size: 0.82rem;
+  color: var(--wo-muted);
+}
+
+.aid-wo-pipeline-foot .is-ok {
+  color: var(--wo-green);
+  font-weight: 700;
+}
+
+.aid-wo-pipeline-foot .is-bad {
+  color: var(--wo-danger);
+  font-weight: 700;
+}
+
+.aid-wo-pipeline-foot .is-warn {
+  color: var(--wo-warn);
+  font-weight: 700;
+}
+
+.aid-wo-stuck {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.aid-wo-stuck__item {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: left;
+  border: 1px solid #e7ebe8;
+  background: #fbfcfa;
+  border-radius: 10px;
+  padding: 0.75rem 0.85rem;
+  cursor: pointer;
+}
+
+.aid-wo-stuck__item strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--wo-ink);
+}
+
+.aid-wo-stuck__item p {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: var(--wo-muted);
+}
+
+.aid-wo-stuck__item > span {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--wo-ink);
+}
+
+.aid-wo-age {
+  margin-top: 1rem;
+}
+
+.aid-wo-age__label {
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--wo-muted);
+  margin-bottom: 0.45rem;
+}
+
+.aid-wo-age__bar {
+  display: flex;
+  height: 14px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: #eef2ef;
+}
+
+.aid-wo-age__seg--0 {
+  background: #14532d;
+}
+
+.aid-wo-age__seg--1 {
+  background: #15803d;
+}
+
+.aid-wo-age__seg--2 {
+  background: #86efac;
+}
+
+.aid-wo-age__seg--3 {
+  background: #b45309;
+}
+
+.aid-wo-age__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem 1rem;
+  margin-top: 0.55rem;
+  font-size: 0.75rem;
+  color: var(--wo-muted);
+}
+
+.aid-wo-age__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.aid-wo-age__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.aid-wo-attention {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.aid-wo-attention__card {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: left;
+  border: none;
+  border-radius: 12px;
+  padding: 0.85rem 0.95rem;
+  cursor: pointer;
+}
+
+.aid-wo-attention__card--danger {
+  background: var(--wo-danger-bg);
+}
+
+.aid-wo-attention__card--warn {
+  background: var(--wo-warn-bg);
+}
+
+.aid-wo-attention__card--muted {
+  background: #f1f5f9;
+}
+
+.aid-wo-attention__count {
+  font-size: 1.8rem;
+  font-weight: 850;
+  color: var(--wo-ink);
+}
+
+.aid-wo-attention__card strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--wo-ink);
+}
+
+.aid-wo-attention__card p {
+  margin: 0.2rem 0 0;
+  font-size: 0.78rem;
+  color: #57534e;
+}
+
+.aid-wo-chart {
+  height: 260px;
+  position: relative;
+}
+
+.aid-wo-budget {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 110px;
+}
+
+.aid-wo-budget__track {
+  flex: 1;
+  height: 8px;
+  background: #eef2ef;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.aid-wo-budget__fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.aid-wo-budget__fill--ok {
+  background: #15803d;
+}
+
+.aid-wo-budget__fill--warn {
+  background: #ea580c;
+}
+
+.aid-wo-budget__fill--danger {
+  background: #b91c1c;
+}
+
+.aid-wo-table th,
+.aid-wo-table td {
+  white-space: nowrap;
+}
+
+.aid-wo-links {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.85rem;
+  font-size: 0.88rem;
+}
+
+.aid-wo-links a {
+  color: var(--wo-green);
+  font-weight: 650;
+}
+
+@media (max-width: 1200px) {
+  .aid-wo-kpis {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .aid-wo-grid-2,
+  .aid-wo-grid-2--attention {
+    grid-template-columns: 1fr;
+  }
+
+  .aid-wo-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .aid-wo-funnel__row {
+    grid-template-columns: 90px 1fr 54px;
+  }
+}
+
+@media print {
+  .aid-wo-export,
+  .navbar,
+  .sidebar,
+  .page-header button {
+    display: none !important;
+  }
+
+  .aid-welfare-overview {
+    background: #fff;
+    padding: 0;
+  }
+}

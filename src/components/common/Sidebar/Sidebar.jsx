@@ -12,7 +12,7 @@ const Sidebar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeItem, setActiveItem] = useState('');
   const location = useLocation();
-  const { user, permissions } = useAuth();
+  const { user, permissions, entitlements } = useAuth();
 
   useEffect(() => {
     setActiveItem(location.pathname);
@@ -34,7 +34,11 @@ const Sidebar = () => {
     setMobileOpen(false);
   };
 
-  const sidebarConfig = getSidebarConfig(user, permissions);
+  const sidebarConfig = getSidebarConfig(user, permissions).filter((group) => {
+    if (!entitlements || !group?.id) return true;
+    if (!(group.id in entitlements)) return true;
+    return entitlements[group.id] !== false;
+  });
 
   // Debug logging (remove in production)
   useEffect(() => {
