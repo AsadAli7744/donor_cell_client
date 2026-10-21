@@ -9,11 +9,13 @@ import { getGoogleMapsUrl } from '../../../../../utils/geolocation';
 import DonationBoxDonationAuditHistory from '../shared/DonationBoxDonationAuditHistory';
 import { formatAuditActor } from '../../../../common/audit/auditHistoryLabels';
 import { isLocalId } from '../../../../../offline/handlers';
+import { useDonationBoxLabels } from '../../../donation_box/shared/donationBoxFieldLabels';
 
 const ViewDonationBoxDonation = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { labels } = useDonationBoxLabels();
   const [donation, setDonation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -243,29 +245,29 @@ const ViewDonationBoxDonation = () => {
               </h3>
               <div className="view-grid">
                 <div className="view-item">
-                  <span className="view-item-label">Box ID</span>
+                  <span className="view-item-label">{labels.box_id_no}</span>
                   <span className="view-item-value">BOX-{donationBox.box_id_no || 'N/A'}</span>
                 </div>
                 <div className="view-item">
-                  <span className="view-item-label">Key Number</span>
+                  <span className="view-item-label">{labels.key_no}</span>
                   <span className="view-item-value">{donationBox.key_no || '-'}</span>
                 </div>
                 <div className="view-item">
-                  <span className="view-item-label">Box Type</span>
+                  <span className="view-item-label">{labels.box_type}</span>
                   <span className="view-item-value" style={{ textTransform: 'capitalize' }}>
                     {donationBox.box_type || '-'}
                   </span>
                 </div>
                 <div className="view-item">
-                  <span className="view-item-label">Shop Name</span>
+                  <span className="view-item-label">{labels.shop_name}</span>
                   <span className="view-item-value">{donationBox.shop_name || '-'}</span>
                 </div>
                 <div className="view-item">
-                  <span className="view-item-label">Shopkeeper</span>
+                  <span className="view-item-label">{labels.shopkeeper}</span>
                   <span className="view-item-value">{donationBox.shopkeeper || '-'}</span>
                 </div>
                 <div className="view-item">
-                  <span className="view-item-label">Cell Number</span>
+                  <span className="view-item-label">{labels.cell_no}</span>
                   <span className="view-item-value">{donationBox.cell_no || '-'}</span>
                 </div>
                 {donationBox.route && (
@@ -287,7 +289,7 @@ const ViewDonationBoxDonation = () => {
                   </>
                 )}
                 <div className="view-item">
-                  <span className="view-item-label">Landmark/Marketplace</span>
+                  <span className="view-item-label">{labels.landmark_marketplace}</span>
                   <span className="view-item-value">{donationBox.landmark_marketplace || '-'}</span>
                 </div>
               </div>

@@ -7,6 +7,7 @@ import SearchableMultiSelect from '../../../common/SearchableMultiSelect';
 import Navbar from '../../../Navbar';
 import PageHeader from '../../../common/PageHeader';
 import DonationBoxAuditHistory from '../shared/DonationBoxAuditHistory';
+import { useDonationBoxLabels } from '../shared/donationBoxFieldLabels';
 import LocationMapPicker from '../../../common/LocationMapPicker';
 import {
   DEFAULT_COLLECTION_RADIUS_METERS,
@@ -18,6 +19,7 @@ import {
 const EditDonationBox = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { labels, place } = useDonationBoxLabels();
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -242,7 +244,7 @@ const EditDonationBox = () => {
   const handleRelocate = async (e) => {
     e.preventDefault();
     if (!relocateForm.shop_name?.trim()) {
-      setError('Shop name is required to relocate the box.');
+      setError(`${labels.shop_name} is required to relocate the box.`);
       return;
     }
 
@@ -369,9 +371,9 @@ const EditDonationBox = () => {
         {success && <div className="status-message status-message--success">{success}</div>}
 
         <div className="form-section">
-          <h3 className="form-section-heading">Current shop placement</h3>
+          <h3 className="form-section-heading">Current {place.toLowerCase()} placement</h3>
           <p className="form-section-hint" style={{ marginBottom: '12px', color: '#6b7280' }}>
-            This is where the box is placed today. Use the relocate form below to move it to a new shop.
+            This is where the box is placed today. Use the relocate form below to move it to a new {place.toLowerCase()}.
           </p>
           <div className="view-grid">
             <div className="view-item">
@@ -387,19 +389,19 @@ const EditDonationBox = () => {
               <span className="view-item-value">{donationBox.route?.name || '—'}</span>
             </div>
             <div className="view-item">
-              <span className="view-item-label">Shop name</span>
+              <span className="view-item-label">{labels.shop_name}</span>
               <span className="view-item-value">{donationBox.shop_name || '—'}</span>
             </div>
             <div className="view-item">
-              <span className="view-item-label">Shopkeeper</span>
+              <span className="view-item-label">{labels.shopkeeper}</span>
               <span className="view-item-value">{donationBox.shopkeeper || '—'}</span>
             </div>
             <div className="view-item">
-              <span className="view-item-label">Cell number</span>
+              <span className="view-item-label">{labels.cell_no}</span>
               <span className="view-item-value">{donationBox.cell_no || '—'}</span>
             </div>
             <div className="view-item">
-              <span className="view-item-label">Landmark</span>
+              <span className="view-item-label">{labels.landmark_marketplace}</span>
               <span className="view-item-value">{donationBox.landmark_marketplace || '—'}</span>
             </div>
             <div className="view-item">
@@ -414,7 +416,7 @@ const EditDonationBox = () => {
 
         <form onSubmit={handleRelocate} className="form">
           <div className="form-section">
-            <h3 className="form-section-heading">Relocate to new shop</h3>
+            <h3 className="form-section-heading">Relocate to new {place.toLowerCase()}</h3>
             <p className="form-section-hint" style={{ marginBottom: '16px', color: '#6b7280' }}>
               Assign this same physical box to a new shop. A full audit record is kept and your
               reporting manager will receive an in-app notification and email.
@@ -466,7 +468,7 @@ const EditDonationBox = () => {
               />
 
               <FormInput
-                label="Active since (at new shop)"
+                label={`Active since (at new ${place.toLowerCase()})`}
                 type="date"
                 name="active_since"
                 value={relocateForm.active_since}
@@ -474,35 +476,35 @@ const EditDonationBox = () => {
               />
 
               <FormInput
-                label="New shop name"
+                label={`New ${labels.shop_name.toLowerCase()}`}
                 type="text"
                 name="shop_name"
                 value={relocateForm.shop_name}
                 onChange={handleRelocateChange}
                 required
-                placeholder="Enter new shop name"
+                placeholder={`Enter new ${labels.shop_name.toLowerCase()}`}
               />
 
               <FormInput
-                label="New shopkeeper name"
+                label={`New ${labels.shopkeeper.toLowerCase()}`}
                 type="text"
                 name="shopkeeper"
                 value={relocateForm.shopkeeper}
                 onChange={handleRelocateChange}
-                placeholder="Shopkeeper at new location"
+                placeholder={`${labels.shopkeeper} at new location`}
               />
 
               <FormInput
-                label="New cell number"
+                label={`New ${labels.cell_no.toLowerCase()}`}
                 type="tel"
                 name="cell_no"
                 value={relocateForm.cell_no}
                 onChange={handleRelocateChange}
-                placeholder="Contact at new shop"
+                placeholder={`Contact at new ${place.toLowerCase()}`}
               />
 
               <FormInput
-                label="Landmark / marketplace"
+                label={labels.landmark_marketplace}
                 type="text"
                 name="landmark_marketplace"
                 value={relocateForm.landmark_marketplace}
@@ -547,7 +549,7 @@ const EditDonationBox = () => {
           </div>
 
           <div className="form-section">
-            <h3 className="form-section-heading">New shop location on map (optional)</h3>
+            <h3 className="form-section-heading">New {place.toLowerCase()} location on map (optional)</h3>
             <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#64748b' }}>
               Optional. Save a pin only if you want GPS checks on future collections.
             </p>
@@ -571,7 +573,7 @@ const EditDonationBox = () => {
             <h3 className="form-section-heading">Box settings</h3>
             <div className="form-grid-2">
               <FormInput
-                label="Key number"
+                label={labels.key_no}
                 type="text"
                 name="key_no"
                 value={settingsForm.key_no}
@@ -579,7 +581,7 @@ const EditDonationBox = () => {
               />
 
               <FormSelect
-                label="Box type"
+                label={labels.box_type}
                 name="box_type"
                 value={settingsForm.box_type}
                 onChange={handleSettingsChange}
@@ -597,7 +599,7 @@ const EditDonationBox = () => {
               />
 
               <FormSelect
-                label="Collection frequency"
+                label={labels.frequency}
                 name="collection_frequency"
                 value={settingsForm.collection_frequency}
                 onChange={handleSettingsChange}
@@ -606,7 +608,7 @@ const EditDonationBox = () => {
               />
 
               <FormInput
-                label="Landmark / Marketplace"
+                label={labels.landmark_marketplace}
                 type="text"
                 name="landmark_marketplace"
                 value={settingsForm.landmark_marketplace}

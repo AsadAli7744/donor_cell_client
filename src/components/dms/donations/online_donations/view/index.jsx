@@ -14,6 +14,7 @@ import { getInKindCategoryLabel } from '../../../../../utils/inKindCategories';
 import '../../../../../styles/variables.css';
 import '../../../../../styles/components.css';
 import PageHeader from '../../../../common/PageHeader';
+import AidGrantsPanel from '../../../aid/shared/AidGrantsPanel';
 import Navbar from '../../../../Navbar';
 import FormInput from '../../../../common/FormInput';
 import FormSelect from '../../../../common/FormSelect';
@@ -26,7 +27,7 @@ import DonationPendingAttachments, {
 import '../../shared/DonationPendingAttachments.css';
 import { formatAuditActor } from '../../../../common/audit/auditHistoryLabels';
 import { useAuth } from '../../../../../context/AuthContext';
-import { canReconcileDonations } from '../../../../../utils/permissions';
+import { canReconcileDonations, hasPermission } from '../../../../../utils/permissions';
 import { isLocalId } from '../../../../../offline/handlers';
 import { toast } from 'react-toastify';
 import {
@@ -817,6 +818,17 @@ const ViewOnlineDonation = () => {
           backPath={listBackPath}
         />
         <div className="view-content">
+          <AidGrantsPanel
+            donationId={id}
+            canManage={
+              !!permissions?.super_admin ||
+              !!permissions?.fund_raising_manager ||
+              hasPermission(permissions, 'fund_raising', 'online_donations', 'update') ||
+              hasPermission(permissions, 'fund_raising', 'offline_donations', 'update') ||
+              hasPermission(permissions, 'fund_raising', 'in_kind_donations', 'update')
+            }
+            variant="donation"
+          />
           {isPendingOffline && (
             <div
               className="status-message"

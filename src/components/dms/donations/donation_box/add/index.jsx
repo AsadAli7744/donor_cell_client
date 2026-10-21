@@ -10,10 +10,12 @@ import PageHeader from '../../../../common/PageHeader';
 import { useAuth } from '../../../../../context/AuthContext';
 import { hasPermission } from '../../../../../utils/permissions';
 import { DEFAULT_COLLECTION_RADIUS_METERS, getCurrentDeviceLocationWithName } from '../../../../../utils/geolocation';
+import { useDonationBoxLabels } from '../../../donation_box/shared/donationBoxFieldLabels';
 
 const AddDonationBoxDonation = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { labels } = useDonationBoxLabels();
   const [form, setForm] = useState({
     donation_box_id: '',
     donation_box: id ?? null, // Will store the selected donation box object
@@ -88,9 +90,9 @@ const AddDonationBoxDonation = () => {
     <>
       <div style={{ fontWeight: '600', color: '#333' }}>
         {box?.box_id_no
-          ? `Box ID: ${box.box_id_no}`
+          ? `${labels.box_id_no}: ${box.box_id_no}`
           : box?.key_no
-            ? `Key: ${box.key_no}`
+            ? `${labels.key_no}: ${box.key_no}`
             : `ID: ${box?.id}`}
       </div>
       <div style={{ fontSize: '0.9em', color: '#666' }}>
@@ -203,7 +205,7 @@ const AddDonationBoxDonation = () => {
             <div className="form-grid-2"> 
               <SearchableDropdown
                 label="Search Donation Box"
-                placeholder="Type Box Key Number or Shopkeeper name..."
+                placeholder={`Type ${labels.key_no.toLowerCase()} or ${labels.shopkeeper.toLowerCase()}...`}
                 apiEndpoint="/donation-box"
                 searchParamName="search"
                 onSelect={handleDonationBoxSelect}

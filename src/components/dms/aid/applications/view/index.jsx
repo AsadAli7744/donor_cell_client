@@ -1,8 +1,12 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import axiosInstance from '../../../../../utils/axios';
 import { useAuth } from '../../../../../context/AuthContext';
-import { hasAidPermission } from '../../../../../utils/permissions';
+import {
+  hasAidPermission,
+  isSuperAdmin,
+} from '../../../../../utils/permissions';
 import Navbar from '../../../../Navbar';
 import PageHeader from '../../../../common/PageHeader';
 import FormSelect from '../../../../common/FormSelect';
@@ -19,6 +23,7 @@ import AidZakatPermissionForm from '../../shared/AidZakatPermissionForm';
 import AidConsentForm from '../../shared/AidConsentForm';
 import AidInvestigationPanel, {
   emptyRecommendation,
+  getInvestigationIncompleteReasons,
   isInvestigationComplete,
   isRecommendationComplete,
   mergeInvestigationState,
@@ -55,13 +60,14 @@ const AidApplicationView = () => {
   const [searchParams] = useSearchParams();
   const fromApprovals = searchParams.get('from') === 'approvals';
   const openCeoAction = searchParams.get('action') === 'approve';
-  const { permissions } = useAuth();
+  const { permissions, user } = useAuth();
   const isStaffElevated =
     !!permissions?.super_admin ||
     !!permissions?.program_manager ||
     !!permissions?.fund_raising_manager;
   const canUpdate =
     isStaffElevated ||
+    hasAidPermission(permissions, 'aid_verification', 'update') ||
     hasAidPermission(permissions, 'aid_applications', 'update');
   const canCeo =
     isStaffElevated ||
@@ -69,9 +75,11 @@ const AidApplicationView = () => {
   const canDeliver =
     isStaffElevated ||
     hasAidPermission(permissions, 'aid_applications', 'deliver');
-  const canBulkVerify =
-    isStaffElevated ||
+  /** Mark all complete — also unlocks investigation for non-assignees */
+  const hasMarkAllComplete =
+    hasAidPermission(permissions, 'aid_verification', 'bulk_verify') ||
     hasAidPermission(permissions, 'aid_applications', 'bulk_verify');
+  const canBulkVerify = isSuperAdmin(permissions) || hasMarkAllComplete;
 
   const [app, setApp] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -97,6 +105,7 @@ const AidApplicationView = () => {
   const [familyTree, setFamilyTree] = useState(null);
   const [kinship, setKinship] = useState([]);
   const [uploadingInvestKey, setUploadingInvestKey] = useState(null);
+  const [investSaving, setInvestSaving] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -227,6 +236,13 @@ const AidApplicationView = () => {
   const nextAssignedId = assignedUser?.id ?? null;
   const assignmentDirty =
     String(currentAssignedId || '') !== String(nextAssignedId || '');
+  const isAssignee =
+    user?.id != null &&
+    currentAssignedId != null &&
+    Number(user.id) === Number(currentAssignedId);
+  /** Investigation: assignee, super admin, or Mark all complete (bulk_verify) */
+  const canInvestigate =
+    isSuperAdmin(permissions) || hasMarkAllComplete || isAssignee;
 
   const saveAssignment = async () => {
     setAssignSaving(true);
@@ -292,10 +308,53 @@ const AidApplicationView = () => {
     investigationItems,
     investigation,
   );
+  const checklistGaps = getInvestigationIncompleteReasons(
+    investigationItems,
+    investigation,
+  );
   const recommendationComplete = isRecommendationComplete(recommendation);
+
+  const saveInvestigationProgress = async () => {
+    if (!id || investSaving) return;
+    setInvestSaving(true);
+    setActionError('');
+    try {
+      await axiosInstance.patch(`/aid/applications/${id}`, {
+        verification_notes: verifyNotes || recommendation.remarks || undefined,
+        verification_checklist: investigation,
+        investigation_recommendation: {
+          decision: recommendation.decision,
+          amount:
+            recommendation.decision === 'reject'
+              ? null
+              : recommendation.amount !== '' &&
+                  recommendation.amount != null
+                ? Number(recommendation.amount)
+                : null,
+          period_months: Number(recommendation.period_months) || null,
+          remarks: recommendation.remarks || '',
+          found_monthly_income: recommendation.found_monthly_income
+            ? Number(recommendation.found_monthly_income)
+            : null,
+        },
+      });
+      await load();
+      toast.success('Investigation progress saved');
+    } catch (err) {
+      const msg =
+        err.response?.data?.message ||
+        err.message ||
+        'Failed to save investigation progress';
+      setActionError(msg);
+      toast.error(msg);
+    } finally {
+      setInvestSaving(false);
+    }
+  };
   const showReject =
     canUpdate && !['successful', 'delivered', 'rejected'].includes(status);
-  const showVerify = canUpdate && ['submitted', 'under_review'].includes(status);
+  const showVerify =
+    canInvestigate && ['submitted', 'under_review'].includes(status);
   const showDelivery = canDeliver && (status === 'successful' || status === 'delivered');
   const tabAtt = attachments.filter((a) => a.context === attachContext);
   const verifiedByName = app.verified_by
@@ -927,8 +986,14 @@ const AidApplicationView = () => {
                   vulnerability={app.vulnerability}
                   recommendation={recommendation}
                   onRecommendationChange={setRecommendation}
+                  onSaveProgress={
+                    showVerify ? saveInvestigationProgress : undefined
+                  }
+                  saveProgressBusy={investSaving}
+                  saveProgressDisabled={busy || investSaving}
                   submitDisabled={
                     busy ||
+                    investSaving ||
                     !checklistComplete ||
                     !recommendationComplete ||
                     !leakageOverrideOk
@@ -967,11 +1032,30 @@ const AidApplicationView = () => {
                       : undefined
                   }
                 />
-                {activePanelTab === 'case' && showVerify && !checklistComplete && (
-                  <p style={{ fontSize: 12, color: '#b45309', marginBottom: 0 }}>
-                    Mark every required claim Verified or Mismatch (with Found
-                    note). Process checks must be Verified.
-                  </p>
+                {(activePanelTab === 'case' ||
+                  activePanelTab === 'field_process') &&
+                  showVerify &&
+                  !checklistComplete && (
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: '#b45309',
+                      marginBottom: 0,
+                    }}
+                  >
+                    <p style={{ margin: '0 0 0.35rem' }}>
+                      Submit stays disabled until every required check is done.
+                      Use <strong>Save progress</strong> anytime.
+                    </p>
+                    <ul style={{ margin: 0, paddingLeft: '1.1rem' }}>
+                      {checklistGaps.slice(0, 6).map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                      {checklistGaps.length > 6 ? (
+                        <li>+{checklistGaps.length - 6} more…</li>
+                      ) : null}
+                    </ul>
+                  </div>
                 )}
                 {activePanelTab === 'case' &&
                   showVerify &&

@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
   FiCheck,
   FiChevronLeft,
@@ -15,7 +15,6 @@ import FormSelect from '../../../../common/FormSelect';
 import FormTextarea from '../../../../common/FormTextarea';
 import { PrimaryButton } from '../../../../common/buttons';
 import SearchableDropdown from '../../../../common/SearchableDropdown';
-import AidUserAssignField from '../../shared/AidUserAssignField';
 import AidLiteracyFields from '../../shared/AidLiteracyFields';
 import AidFamilyHeadPersonalFields from '../../shared/AidFamilyHeadPersonalFields';
 import AidPropertyOwnership from '../../shared/AidPropertyOwnership';
@@ -30,6 +29,7 @@ import AidFinancialAssistanceFields from '../../shared/AidFinancialAssistanceFie
 import AidZakatPermissionForm from '../../shared/AidZakatPermissionForm';
 import AidConsentForm from '../../shared/AidConsentForm';
 import AidFamilyMembersIntake from '../../shared/AidFamilyMembersIntake';
+import AidFamilyTreePanel from '../../shared/AidFamilyTreePanel';
 import AidApplicantCheckbox from '../../shared/AidApplicantCheckbox';
 import AidApplicationDocsIntake from '../../shared/AidApplicationDocsIntake';
 import { downloadAsPng } from '../../shared/downloadAsPng';
@@ -256,8 +256,234 @@ const cleanPersonPayload = (p) => {
   };
 };
 
+const HEAD_TYPE_VALUES = new Set(AID_FAMILY_HEAD_TYPES.map((t) => t.value));
+
+const toFamilyHeadType = (relation) => {
+  const r = String(relation || '').toLowerCase();
+  if (HEAD_TYPE_VALUES.has(r)) return r;
+  if (r === 'husband') return 'spouse';
+  return 'other';
+};
+
+
+
+/** Map API person → intake form row. */
+const mapPersonToForm = (p, extras = {}) => {
+  if (!p) return { ...emptyPerson, ...extras };
+  const sliceDate = (v) => (v ? String(v).slice(0, 10) : '');
+  return {
+    ...emptyPerson,
+    full_name: p.full_name || '',
+    father_or_husband_name: p.father_or_husband_name || '',
+    name_urdu: p.name_urdu || '',
+    caste: p.caste || '',
+    cnic: p.cnic || '',
+    cnic_expiry: sliceDate(p.cnic_expiry),
+    phone: p.phone || '',
+    phone_alternate: p.phone_alternate || '',
+    photo_url: p.photo_url || '',
+    photo_name: p.photo_name || '',
+    city: p.city || '',
+    address: p.address || '',
+    province: p.province || '',
+    district: p.district || '',
+    tehsil: p.tehsil || '',
+    union_council: p.union_council || '',
+    landmark: p.landmark || '',
+    gender: p.gender || '',
+    date_of_birth: sliceDate(p.date_of_birth),
+    marital_status: p.marital_status || '',
+    vulnerability: p.vulnerability || '',
+    occupation: p.occupation || '',
+    monthly_income: p.monthly_income ?? '',
+    household_dependency: p.household_dependency || '',
+    education_level: p.education_level || '',
+    literacy_status: p.literacy_status || '',
+    literacy_category: p.literacy_category || '',
+    student_class: p.student_class || '',
+    student_class_type: p.student_class_type || '',
+    student_class_name: p.student_class_name || '',
+    is_alive: p.is_alive !== false,
+    has_disability: !!p.has_disability,
+    disability_type: p.disability_type || '',
+    has_land: !!p.has_land,
+    property_type: p.property_type || '',
+    property_area: p.property_area || '',
+    property_details: p.property_details || '',
+    property_entries: Array.isArray(p.property_entries)
+      ? p.property_entries
+      : p.has_land && (p.property_type || p.property_details || p.property_area)
+        ? [
+            {
+              property_type: p.property_type || '',
+              property_area: p.property_area || '',
+              property_details: p.property_details || '',
+            },
+          ]
+        : [],
+    resident_type: p.resident_type || '',
+    resident_ownership_status: p.resident_ownership_status || '',
+    resident_ownership_other: p.resident_ownership_other || '',
+    rented_amount: p.rented_amount ?? '',
+    house_area_marla: p.house_area_marla ?? '',
+    house_details: p.house_details || '',
+    resident_entries: Array.isArray(p.resident_entries)
+      ? p.resident_entries
+      : p.resident_type
+        ? [
+            {
+              resident_type: p.resident_type || '',
+              resident_ownership_status: p.resident_ownership_status || '',
+              resident_ownership_other: p.resident_ownership_other || '',
+              rented_amount: p.rented_amount ?? '',
+              house_area_marla: p.house_area_marla ?? '',
+              house_details: p.house_details || '',
+            },
+          ]
+        : [],
+    has_livestock: !!p.has_livestock,
+    livestock_entries: Array.isArray(p.livestock_entries)
+      ? p.livestock_entries
+      : [],
+    has_vehicle: !!p.has_vehicle,
+    vehicle_type: p.vehicle_type || '',
+    vehicle_entries: Array.isArray(p.vehicle_entries)
+      ? p.vehicle_entries
+      : p.has_vehicle && p.vehicle_type
+        ? [{ vehicle_type: p.vehicle_type }]
+        : [],
+    necta_status: p.necta_status || '',
+    necta_document_url: p.necta_document_url || '',
+    necta_document_name: p.necta_document_name || '',
+    bisp_status: p.bisp_status || '',
+    existing_person_id: p.id || null,
+    is_applicant: false,
+    is_beneficiary: false,
+    ...extras,
+  };
+};
+
+/** Map family relation → API writer_relation enum. */
+const mapRelationToWriterRelation = (rel) => {
+  const r = String(rel || '').toLowerCase();
+  if (r === 'self') return 'self';
+  if (['father', 'mother', 'spouse', 'guardian', 'relative', 'other'].includes(r)) {
+    return r;
+  }
+  if (
+    [
+      'brother',
+      'sister',
+      'step_brother',
+      'step_sister',
+      'half_brother',
+      'half_sister',
+      'sibling',
+      'son',
+      'daughter',
+      'child',
+      'uncle',
+      'aunt',
+      'cousin',
+      'nephew',
+      'niece',
+      'grandfather',
+      'grandmother',
+      'maternal_grandfather',
+      'maternal_grandmother',
+      'grandchild',
+      'husband',
+    ].includes(r)
+  ) {
+    return 'relative';
+  }
+  if (r === 'custody_holder' || r === 'in_law') return 'other';
+  return 'relative';
+};
+
+const RelativeFields = ({ title, value, onChange, compact }) => (
+  <div
+    className={`aid-relative-block${compact ? ' aid-relative-block--compact' : ''}`}
+  >
+    {/* Same personal field set as Family Head / Beneficiary — optional for relatives */}
+    <AidFamilyHeadPersonalFields
+      title={title || 'Identity'}
+      subtitle="Optional. CNIC is checked against the family registry as you type."
+      contactTitle="Contact & address"
+      contactSubtitle="Optional. The investigator visits this address; add a landmark."
+      fieldsRequired={false}
+      value={value}
+      onChange={onChange}
+      afterGrid={
+        <label className="aid-toggle" style={{ alignSelf: 'end' }}>
+          <input
+            type="checkbox"
+            checked={value?.is_alive !== false}
+            onChange={(e) =>
+              onChange({ ...value, is_alive: e.target.checked })
+            }
+          />
+          Alive
+        </label>
+      }
+    />
+    <AidLiteracyFields value={value} onChange={onChange} />
+  </div>
+);
+
+const cleanPersonPayload = (p) => {
+  if (!p?.full_name?.trim()) return null;
+  return {
+    full_name: p.full_name.trim(),
+    father_or_husband_name: p.father_or_husband_name?.trim() || undefined,
+    name_urdu: p.name_urdu?.trim() || undefined,
+    caste: p.caste?.trim() || undefined,
+    cnic: p.cnic || undefined,
+    cnic_expiry: p.cnic_expiry || undefined,
+    phone: p.phone || undefined,
+    phone_alternate: p.phone_alternate?.trim() || undefined,
+    photo_url: p.photo_url || undefined,
+    photo_name: p.photo_name || undefined,
+    gender: p.gender || undefined,
+    date_of_birth: p.date_of_birth || undefined,
+    marital_status: p.marital_status || undefined,
+    vulnerability: p.vulnerability || undefined,
+    occupation: p.occupation || p.literacy_category || undefined,
+    monthly_income: p.monthly_income || undefined,
+    household_dependency: p.household_dependency || undefined,
+    education_level: p.education_level || undefined,
+    literacy_status: p.literacy_status || undefined,
+    literacy_category: p.literacy_category || undefined,
+    student_class: p.student_class || undefined,
+    student_class_type: p.student_class_type || undefined,
+    student_class_name: p.student_class_name || undefined,
+    has_disability: !!p.has_disability,
+    disability_type: p.has_disability ? p.disability_type || undefined : undefined,
+    ...cleanPropertyEntries(p),
+    ...cleanResidentEntries(p),
+    ...cleanLivestockEntries(p),
+    ...cleanVehicleEntries(p),
+    necta_status: p.necta_status || undefined,
+    necta_document_url: p.necta_document_url || undefined,
+    necta_document_name: p.necta_document_name || undefined,
+    bisp_status: p.bisp_status || undefined,
+    is_alive: p.is_alive !== false,
+    address: p.address || undefined,
+    city: p.city || p.district || undefined,
+    province: p.province || undefined,
+    district: p.district || undefined,
+    tehsil: p.tehsil || undefined,
+    union_council: p.union_council || undefined,
+    landmark: p.landmark || undefined,
+  };
+};
+
 const AidApplicationAdd = () => {
   const navigate = useNavigate();
+  const { id: editIdParam } = useParams();
+  const editId = editIdParam ? Number(editIdParam) : null;
+  const isEdit = Number.isFinite(editId) && editId > 0;
+
   const [beneficiaryMode, setBeneficiaryMode] = useState('new');
   const [beneficiaryId, setBeneficiaryId] = useState(null);
   const [existingBeneficiary, setExistingBeneficiary] = useState(null);
@@ -283,7 +509,6 @@ const AidApplicationAdd = () => {
   const [zakatPermission, setZakatPermission] = useState(emptyZakatPermission());
   const [consentForm, setConsentForm] = useState(emptyConsentForm());
   const [applicationDocs, setApplicationDocs] = useState({});
-  const [assignedUser, setAssignedUser] = useState(null);
   const [familyHeads, setFamilyHeads] = useState([
     {
       ...emptyFamilyHeadRow('father'),
@@ -295,12 +520,198 @@ const AidApplicationAdd = () => {
   /** Beneficiary tab — any relatives (children, siblings, parents, …). */
   const [beneficiaryMembers, setBeneficiaryMembers] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [loadingEdit, setLoadingEdit] = useState(isEdit);
+  const [editStatus, setEditStatus] = useState(null);
   const [error, setError] = useState('');
   const [formTab, setFormTab] = useState('family');
+  const isDraftEdit = isEdit && editStatus === 'draft';
+  const draftsListPath = '/dms/aid/applications/drafts/list';
   const applicationCaptureRef = useRef(null);
   const zakatCaptureRef = useRef(null);
   const consentCaptureRef = useRef(null);
   const [pngDownloading, setPngDownloading] = useState(false);
+
+
+  const hydrateFromApplication = useCallback(async (appId) => {
+    setLoadingEdit(true);
+    setError('');
+    try {
+      const appRes = await axiosInstance.get(`/aid/applications/${appId}`);
+      const app = appRes.data?.data || appRes.data;
+      if (!app?.id) throw new Error('Application not found');
+
+      setEditStatus(app.status || null);
+
+      const closed =
+        app.status === 'rejected' || app.status === 'delivered';
+      if (closed) {
+        throw new Error('This application is closed and cannot be edited');
+      }
+
+      const benId =
+        app.beneficiary?.id || app.beneficiary_person_id || null;
+      let personDetail = null;
+      if (benId) {
+        try {
+          const peopleRes = await axiosInstance.get(`/aid/people/${benId}`);
+          personDetail = peopleRes.data?.data || null;
+        } catch {
+          personDetail = null;
+        }
+      }
+
+      const beneficiaryPerson =
+        personDetail?.person || app.beneficiary || null;
+      const writer = app.writer || null;
+      const writerId = writer?.id || app.writer_person_id || null;
+      const beneficiaryPersonId = beneficiaryPerson?.id || benId;
+      const isWriterSelf =
+        !writerId ||
+        Number(writerId) === Number(beneficiaryPersonId) ||
+        String(app.writer_relation || '').toLowerCase() === 'self';
+
+      const aidType = app.requested_aid_type || 'health';
+      setForm({
+        title: app.title || '',
+        request_summary: app.request_summary || '',
+        requested_aid_type: aidType,
+      });
+      setEducationDetails(
+        app.education_details
+          ? { ...emptyEducationDetails(), ...app.education_details }
+          : emptyEducationDetails(),
+      );
+      setRationDetails(
+        app.ration_details
+          ? { ...emptyRationDetails(), ...app.ration_details }
+          : emptyRationDetails(),
+      );
+      setMarriageGiftDetails(
+        app.marriage_gift_details
+          ? { ...emptyMarriageGiftDetails(), ...app.marriage_gift_details }
+          : emptyMarriageGiftDetails(),
+      );
+      setFinancialAssistanceDetails(
+        app.financial_assistance_details
+          ? {
+              ...emptyFinancialAssistanceDetails(),
+              ...app.financial_assistance_details,
+            }
+          : emptyFinancialAssistanceDetails(),
+      );
+      setZakatPermission(
+        app.zakat_permission
+          ? { ...emptyZakatPermission(), ...app.zakat_permission }
+          : emptyZakatPermission(),
+      );
+      setConsentForm(
+        app.consent_form
+          ? { ...emptyConsentForm(), ...app.consent_form }
+          : emptyConsentForm(),
+      );
+
+      const tree = personDetail?.family_tree || {};
+      const parents = tree.parents || [];
+      const spouseRows = tree.spouse || [];
+
+      if (parents.length > 0) {
+        const heads = parents.map((row) => {
+          const rel = toFamilyHeadType(row.relation);
+          const pid = row.person?.id;
+          return mapPersonToForm(row.person, {
+            _relation_type: rel,
+            is_beneficiary: Number(pid) === Number(beneficiaryPersonId),
+            is_applicant:
+              !isWriterSelf && Number(pid) === Number(writerId),
+            _family_members: [],
+          });
+        });
+        setFamilyHeads(heads);
+        const benIsHead = heads.some((h) => h.is_beneficiary);
+        if (benIsHead) {
+          setBeneficiary({ ...emptyPerson, is_applicant: false });
+          setBeneficiaryMode('new');
+          setBeneficiaryId(null);
+          setExistingBeneficiary(null);
+        } else {
+          setBeneficiary(
+            mapPersonToForm(beneficiaryPerson, {
+              is_applicant: isWriterSelf,
+            }),
+          );
+          setBeneficiaryMode('new');
+          setBeneficiaryId(beneficiaryPersonId);
+          setExistingBeneficiary(beneficiaryPerson);
+        }
+      } else {
+        setFamilyHeads([
+          mapPersonToForm(beneficiaryPerson, {
+            _relation_type: 'father',
+            is_beneficiary: true,
+            is_applicant: isWriterSelf,
+            _family_members: [],
+          }),
+        ]);
+        setBeneficiary({ ...emptyPerson, is_applicant: false });
+        setBeneficiaryMode('new');
+        setBeneficiaryId(beneficiaryPersonId);
+        setExistingBeneficiary(beneficiaryPerson);
+      }
+
+      if (spouseRows[0]?.person) {
+        const sp = spouseRows[0].person;
+        setSpouse(
+          mapPersonToForm(sp, {
+            marital_status: sp.marital_status || 'married',
+            is_applicant:
+              !isWriterSelf && Number(sp.id) === Number(writerId),
+          }),
+        );
+      } else {
+        setSpouse(emptyRelative());
+      }
+
+      const memberKeys = [
+        'children',
+        'brothers',
+        'sisters',
+        'siblings',
+        'extended',
+        'grandparents',
+        'grandchildren',
+      ];
+      const members = [];
+      for (const key of memberKeys) {
+        for (const row of tree[key] || []) {
+          if (!row?.person) continue;
+          const rel = String(row.relation || 'other').toLowerCase();
+          members.push(
+            mapPersonToForm(row.person, {
+              relation_type: HEAD_TYPE_VALUES.has(rel) ? rel : 'other',
+              is_applicant:
+                !isWriterSelf && Number(row.person.id) === Number(writerId),
+            }),
+          );
+        }
+      }
+      setBeneficiaryMembers(members);
+    } catch (err) {
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          'Failed to load application for edit',
+      );
+    } finally {
+      setLoadingEdit(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isEdit) {
+      hydrateFromApplication(editId);
+    }
+  }, [isEdit, editId, hydrateFromApplication]);
+
 
   const handleDownloadPng = async (ref, fileName) => {
     if (!ref?.current || pngDownloading) return;
@@ -316,6 +727,7 @@ const AidApplicationAdd = () => {
 
   const FORM_TABS = [
     { id: 'family', label: 'Family Registration', hint: 'Household' },
+    { id: 'family_tree', label: 'Family Tree', hint: 'Household map' },
     { id: 'beneficiary', label: 'Beneficiary', hint: 'Person details' },
     { id: 'request', label: 'Application', hint: 'Need & aid type' },
     { id: 'attachments', label: 'Attachments', hint: 'Docs & forms' },
@@ -663,9 +1075,6 @@ const AidApplicationAdd = () => {
         consent_form: consentForm,
         writer_relation: 'self',
         family_members: buildFamilyMembers(),
-        ...(assignedUser?.id
-          ? { assigned_to_user_id: Number(assignedUser.id) }
-          : {}),
       };
 
       const validatePerson = (person, label) => {
@@ -745,9 +1154,18 @@ const AidApplicationAdd = () => {
         }
       }
 
-      const res = await axiosInstance.post('/aid/applications', payload);
-      const id = res.data?.data?.id;
-      if (id) {
+      let savedId = editId;
+      if (isEdit) {
+        delete payload.beneficiary_person_id;
+        await axiosInstance.patch(`/aid/applications/${editId}`, payload);
+        toast.success('Application updated');
+      } else {
+        const res = await axiosInstance.post('/aid/applications', payload);
+        savedId = res.data?.data?.id;
+        toast.success('Saved as draft — open Drafts to approve for verification');
+      }
+
+      if (savedId) {
         const docEntries = Object.entries(applicationDocs || {}).filter(
           ([, slot]) => slot?.file,
         );
@@ -757,19 +1175,28 @@ const AidApplicationAdd = () => {
           fd.append('context', context);
           fd.append('description', context);
           await axiosInstance.post(
-            `/aid/applications/${id}/attachments/upload`,
+            `/aid/applications/${savedId}/attachments/upload`,
             fd,
             { headers: { 'Content-Type': 'multipart/form-data' } },
           );
         }
       }
+      const goDrafts = !isEdit || isDraftEdit;
       navigate(
-        id
-          ? `/dms/aid/applications/entry/view/${id}`
-          : '/dms/aid/applications/entry/list',
+        savedId
+          ? goDrafts
+            ? `/dms/aid/applications/drafts/view/${savedId}`
+            : `/dms/aid/applications/entry/view/${savedId}`
+          : goDrafts
+            ? draftsListPath
+            : '/dms/aid/applications/entry/list',
       );
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Failed to create application');
+      setError(
+        err.response?.data?.message ||
+          err.message ||
+          (isEdit ? 'Failed to update application' : 'Failed to save draft'),
+      );
     } finally {
       setSaving(false);
     }
@@ -784,20 +1211,60 @@ const AidApplicationAdd = () => {
     return base;
   }, [isMarried, spouseLabel]);
 
+  const formBackPath =
+    !isEdit || isDraftEdit
+      ? draftsListPath
+      : '/dms/aid/applications/entry/list';
+  const formTitle = !isEdit
+    ? 'New draft application'
+    : isDraftEdit
+      ? 'Edit draft'
+      : 'Edit Aid Application';
+  const submitLabel = !isEdit
+    ? 'Save as draft'
+    : isDraftEdit
+      ? 'Save draft'
+      : 'Save changes';
+
+  if (loadingEdit) {
+    return (
+      <>
+        <Navbar />
+        <div className="form-content">
+          <PageHeader
+            title="Edit draft"
+            backPath={draftsListPath}
+            onBackClick={() => navigate(draftsListPath)}
+            showAdd={false}
+          />
+          <p>Loading application…</p>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <Navbar />
       <div className="form-content">
         <PageHeader
-          title="New Aid Application"
-          backPath="/dms/aid/applications/entry/list"
-          onBackClick={() => navigate('/dms/aid/applications/entry/list')}
+          title={formTitle}
+          backPath={formBackPath}
+          onBackClick={() => navigate(formBackPath)}
           showAdd={false}
         />
 
         {error && (
           <div className="status-message status-message--error">{error}</div>
         )}
+
+        {!isEdit || isDraftEdit ? (
+          <p className="aid-section-hint" style={{ marginBottom: 12 }}>
+            This form saves a <strong>draft</strong>. Assignment is done when
+            an approver uses <strong>Drafts → Approve</strong> (program user)
+            to send it to Verification Process.
+          </p>
+        ) : null}
 
         <form onSubmit={handleSubmit} className="form aid-application-form">
           <div className="aid-steps" role="navigation" aria-label="Application steps">
@@ -1025,16 +1492,6 @@ const AidApplicationAdd = () => {
           </div>
           )}
 
-          {formTab === 'assignment' && (
-          <div className="form-section">
-            <h3 className="form-section-heading">Assignment</h3>
-            <AidUserAssignField
-              value={assignedUser}
-              onChange={setAssignedUser}
-              hint="Optional — assign a fund-raising staff member to handle this case."
-            />
-          </div>
-          )}
 
           {formTab === 'beneficiary' && (
           <div className="form-section">
@@ -1177,15 +1634,32 @@ const AidApplicationAdd = () => {
           </div>
           )}
 
+          {formTab === 'family_tree' && (
+            <div className="form-section">
+              <AidFamilyTreePanel
+                familyHeads={familyHeads}
+                spouse={spouse}
+                beneficiaryMembers={beneficiaryMembers}
+                beneficiary={
+                  headAsBeneficiary ||
+                  (beneficiaryMode === 'existing'
+                    ? existingBeneficiary
+                    : beneficiary)
+                }
+                headAsBeneficiary={headAsBeneficiary}
+              />
+            </div>
+          )}
+
           {formTab === 'family' && (
           <div className="form-section">
-            <h3 className="form-section-heading">Family Head</h3>
+            {/* <h3 className="form-section-heading">Family Head</h3>
             <p className="aid-section-hint">{familyHint}</p>
             <p className="aid-section-hint">
               For a single-person family, check both Applicant and Beneficiary
               on the Family Head. Otherwise mark Applicant / Beneficiary as
               needed (spouse or family members can also be the applicant).
-            </p>
+            </p> */}
 
             {isMarried && (
               <div className="aid-family-panel">
@@ -1539,7 +2013,7 @@ const AidApplicationAdd = () => {
               )}
             </div>
             <PrimaryButton type="submit" loading={saving} loadingText="Saving…">
-              Submit application
+              {submitLabel}
             </PrimaryButton>
           </div>
         </form>

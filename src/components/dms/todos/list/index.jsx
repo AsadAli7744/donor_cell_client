@@ -24,6 +24,7 @@ import {
   FiAlertTriangle,
 } from 'react-icons/fi';
 import './DmsTodos.css';
+import { useDonationBoxLabels } from '../../donation_box/shared/donationBoxFieldLabels';
 
 const RELATED_TYPE_OPTIONS = [
   { value: '', label: 'All Types' },
@@ -112,6 +113,7 @@ function buildCalendar(year, month) {
 
 const DmsTodosPage = () => {
   const navigate = useNavigate();
+  const { labels } = useDonationBoxLabels();
   const canUpdate = true;
 
   const [tab, setTab] = useState('pending');
@@ -612,7 +614,7 @@ const DmsTodosPage = () => {
                           </span>
                         ) : null}
                         {meta.box_id_no ? (
-                          <span>Box ID: {meta.box_id_no}</span>
+                          <span>{labels.box_id_no}: {meta.box_id_no}</span>
                         ) : todo.related_id && todo.related_type !== 'none' ? (
                           <span>
                             Ref: {todo.related_type} #{todo.related_id}
@@ -752,7 +754,7 @@ const DmsTodosPage = () => {
                 <SearchableDropdown
                   label="Donation Box"
                   required
-                  placeholder="Type box key or shop name..."
+                  placeholder={`Type ${labels.key_no.toLowerCase()} or ${labels.shop_name.toLowerCase()}...`}
                   apiEndpoint="/donation-box"
                   searchParamName="search"
                   displayKey="shop_name"
@@ -774,7 +776,7 @@ const DmsTodosPage = () => {
                     <>
                       <div style={{ fontWeight: 600 }}>{box?.shop_name}</div>
                       <div style={{ fontSize: '0.85em', color: '#666' }}>
-                        Key: {box?.key_no || '—'} · Box ID: {box?.box_id_no || '—'}
+                        {labels.key_no}: {box?.key_no || '—'} · {labels.box_id_no}: {box?.box_id_no || '—'}
                       </div>
                     </>
                   )}

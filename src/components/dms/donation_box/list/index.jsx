@@ -25,6 +25,8 @@ import usePersistedFilters from '../../../../hooks/usePersistedFilters';
 import useFiltersPanel from '../../../../hooks/useFiltersPanel';
 
 import { FiEye, FiEdit2, FiTrash2, FiPlusCircle } from 'react-icons/fi';
+import { useDonationBoxLabels } from '../shared/donationBoxFieldLabels';
+import DonationBoxFieldNames from '../shared/DonationBoxFieldNames';
 
 const EMPTY_FILTERS = {
   search: '',
@@ -44,6 +46,7 @@ const EMPTY_FILTERS = {
 const DonationBoxList = () => {
   const navigate = useNavigate();
   const { permissions } = useAuth();
+  const { labels, reload } = useDonationBoxLabels();
   const [donationBoxes, setDonationBoxes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -389,9 +392,9 @@ const DonationBoxList = () => {
   const sortOptions = [
     { value: 'created_at', label: 'Created Date' },
     { value: 'active_since', label: 'Active Since' },
-    { value: 'key_no', label: 'Key No' },
-    { value: 'shop_name', label: 'Shop Name' },
-    { value: 'box_type', label: 'Box Type' },
+    { value: 'key_no', label: labels.key_no },
+    { value: 'shop_name', label: labels.shop_name },
+    { value: 'box_type', label: labels.box_type },
     { value: 'status', label: 'Status' },
   ];
 
@@ -466,6 +469,9 @@ const DonationBoxList = () => {
         />
 
         <div className="list-content">
+          {canUpdateBox && (
+            <DonationBoxFieldNames labels={labels} onSaved={() => reload()} />
+          )}
           {error && <div className="status-message status-message--error">{error}</div>}
 
           <CollapsibleFilters open={filtersOpen}>
@@ -475,7 +481,7 @@ const DonationBoxList = () => {
                 label="Search"
                 filters={tempFilters}
                 onFilterChange={handleFilterChange}
-                placeholder="Search by key no, shop name, shopkeeper, route..."
+                placeholder={`Search by ${labels.key_no.toLowerCase()}, ${labels.shop_name.toLowerCase()}, ${labels.shopkeeper.toLowerCase()}, route...`}
               />
 
               <DropdownFilter
@@ -489,7 +495,7 @@ const DonationBoxList = () => {
 
               <DropdownFilter
                 filterKey="box_type"
-                label="Box Type"
+                label={labels.box_type}
                 data={boxTypeOptions}
                 filters={tempFilters}
                 onFilterChange={handleFilterChange}
@@ -498,7 +504,7 @@ const DonationBoxList = () => {
 
               <DropdownFilter
                 filterKey="frequency"
-                label="Collection Frequency"
+                label={labels.frequency}
                 data={frequencyOptions}
                 filters={tempFilters}
                 onFilterChange={handleFilterChange}
@@ -615,10 +621,10 @@ const DonationBoxList = () => {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Box ID</th>
-                  <th>Shop Name</th>
+                  <th>{labels.box_id_no}</th>
+                  <th>{labels.shop_name}</th>
                   <th>Location</th>
-                  <th>Box Type</th>
+                  <th>{labels.box_type}</th>
                   <th className="hide-on-mobile">Last Collection</th>
                   <th>Status</th>
                   <th>Active Since</th>
@@ -698,7 +704,7 @@ const DonationBoxList = () => {
       
       <ConfirmationModal
         isOpen={showDeleteModal}
-        text={`Are you sure you want to delete donation box ${boxToDelete?.box_id_no} at ${boxToDelete?.shop_name}?`}
+        text={`Are you sure you want to delete this record (${labels.box_id_no} ${boxToDelete?.box_id_no || '—'}, ${labels.shop_name} ${boxToDelete?.shop_name || '—'})?`}
         delete={true}
         onConfirm={handleDeleteConfirm}
         onCancel={handleDeleteCancel}

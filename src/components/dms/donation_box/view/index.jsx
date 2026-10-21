@@ -5,6 +5,7 @@ import Navbar from '../../../Navbar';
 import PageHeader from '../../../common/PageHeader';
 import { FiDollarSign } from 'react-icons/fi';
 import DonationBoxAuditHistory from '../shared/DonationBoxAuditHistory';
+import { useDonationBoxLabels } from '../shared/donationBoxFieldLabels';
 import { formatAuditActor } from '../../../common/audit/auditHistoryLabels';
 import { formatRadiusDisplay, getGoogleMapsUrl } from '../../../../utils/geolocation';
 import LocationDetailsSummary from '../../../common/LocationMapPicker/LocationDetailsSummary';
@@ -12,6 +13,7 @@ import LocationDetailsSummary from '../../../common/LocationMapPicker/LocationDe
 const ViewDonationBox = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { labels, place } = useDonationBoxLabels();
   const [donationBox, setDonationBox] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,15 +138,15 @@ const ViewDonationBox = () => {
             <h3 className="view-section-title">Box Identification</h3>
             <div className="view-grid">
               <div className="view-item">
-                <span className="view-item-label">Box ID</span>
+                <span className="view-item-label">{labels.box_id_no}</span>
                 <span className="view-item-value">{donationBox.box_id_no}</span>
               </div>
               <div className="view-item">
-                <span className="view-item-label">Key Number</span>
+                <span className="view-item-label">{labels.key_no}</span>
                 <span className="view-item-value">{donationBox.key_no || '-'}</span>
               </div>
               <div className="view-item">
-                <span className="view-item-label">Box Type</span>
+                <span className="view-item-label">{labels.box_type}</span>
                 <span className="view-item-value">{getBoxTypeBadge(donationBox.box_type)}</span>
               </div>
               <div className="view-item">
@@ -182,7 +184,7 @@ const ViewDonationBox = () => {
                 <span className="view-item-value">{donationBox.assignedUsers?.map(user => user.first_name + ' ' + user.last_name).join(', ') || '-'}</span>
               </div>
               <div className="view-item">
-                <span className="view-item-label">Landmark/Marketplace</span>
+                <span className="view-item-label">{labels.landmark_marketplace}</span>
                 <span className="view-item-value">{donationBox.landmark_marketplace || '-'}</span>
               </div>
               <div className="view-item">
@@ -239,18 +241,18 @@ const ViewDonationBox = () => {
           </div>
 
           <div className="view-section">
-            <h3 className="view-section-title">Shop Details</h3>
+            <h3 className="view-section-title">{place} details</h3>
             <div className="view-grid">
               <div className="view-item">
-                <span className="view-item-label">Shop Name</span>
+                <span className="view-item-label">{labels.shop_name}</span>
                 <span className="view-item-value">{donationBox.shop_name || '-'}</span>
               </div>
               <div className="view-item">
-                <span className="view-item-label">Shopkeeper</span>
+                <span className="view-item-label">{labels.shopkeeper}</span>
                 <span className="view-item-value">{donationBox.shopkeeper || '-'}</span>
               </div>
               <div className="view-item">
-                <span className="view-item-label">Cell Number</span>
+                <span className="view-item-label">{labels.cell_no}</span>
                 <span className="view-item-value">{donationBox.cell_no || '-'}</span>
               </div>
             </div>

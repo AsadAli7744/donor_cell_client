@@ -28,6 +28,7 @@ import useFiltersPanel from '../../../../../hooks/useFiltersPanel';
 
 import { FiEye, FiTrash2, FiCalendar, FiBox } from 'react-icons/fi';
 import OfflinePendingBadge from '../../../../common/OfflinePendingBadge';
+import { useDonationBoxLabels } from '../../../donation_box/shared/donationBoxFieldLabels';
 
 const EMPTY_FILTERS = {
   search: '',
@@ -46,6 +47,7 @@ const DonationBoxDonationsList = () => {
   const navigate = useNavigate();
   const { id: donationBoxId } = useParams();
   const { permissions } = useAuth();
+  const { labels, place } = useDonationBoxLabels();
   const [donations, setDonations] = useState([]);
   const [donationBoxInfo, setDonationBoxInfo] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -586,7 +588,7 @@ const DonationBoxDonationsList = () => {
                 <tr>
                   <th>ID</th>
                   {!donationBoxId && <th> Box</th>}
-                  {!donationBoxId && <th>Shop</th>}
+                  {!donationBoxId && <th>{place}</th>}
                   {/* {!donationBoxId && <th>Location</th>} */}
                   <th>Collection Amount</th>
                   <th>Collection Date</th>
@@ -621,17 +623,17 @@ const DonationBoxDonationsList = () => {
                               }}
                             >
                               <FiBox style={{ display: 'inline', marginRight: '5px' }} />
-                              Key: {donation.donation_box?.key_no || 'N/A'}
+                              {labels.key_no}: {donation.donation_box?.key_no || 'N/A'}
                             </Link>
                           ) : (
                             <div style={{ fontWeight: '600', color: '#333' }}>
                               <FiBox style={{ display: 'inline', marginRight: '5px' }} />
-                              Key: {donation.donation_box?.key_no || 'N/A'}
+                              {labels.key_no}: {donation.donation_box?.key_no || 'N/A'}
                             </div>
                           )}
                           {donation.donation_box?.box_type && (
                             <div style={{ fontSize: '0.85em', color: '#666', marginTop: '3px' }}>
-                              Type: {donation.donation_box.box_type}
+                              {labels.box_type}: {donation.donation_box.box_type}
                             </div>
                           )}
                         </div>

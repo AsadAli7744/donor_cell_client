@@ -140,6 +140,7 @@ import AidApplicationAdd from './components/dms/aid/applications/add';
 import AidApplicationView from './components/dms/aid/applications/view';
 import AidEntryApplicationsList from './components/dms/aid/applications/entry/list';
 import AidEntryApplicationView from './components/dms/aid/applications/entry/view';
+import AidDraftsList from './components/dms/aid/applications/drafts/list';
 import AidPeopleList from './components/dms/aid/people/list';
 import AidPersonView from './components/dms/aid/people/view';
 import { RecurringDonationsList, RecurringDonationView, AddRecurringDonation, UpdateRecurringDonation } from './components/dms/recurring_donations';
@@ -520,10 +521,13 @@ const App = () => {
 
                                 <Route path="/dms/aid/overview" element={<AidWelfareOverview />} />
                                 <Route path="/dms/aid/applications/list" element={<AidApplicationsList />} />
+                                <Route path="/dms/aid/applications/drafts/list" element={<AidDraftsList />} />
+                                <Route path="/dms/aid/applications/drafts/view/:id" element={<AidEntryApplicationView />} />
                                 <Route path="/dms/aid/applications/entry/list" element={<AidEntryApplicationsList />} />
                                 <Route path="/dms/aid/applications/entry/view/:id" element={<AidEntryApplicationView />} />
                                 <Route path="/dms/aid/applications/approvals" element={<AidApprovalsList />} />
                                 <Route path="/dms/aid/applications/add" element={<AidApplicationAdd />} />
+                                <Route path="/dms/aid/applications/edit/:id" element={<AidApplicationAdd />} />
                                 <Route path="/dms/aid/applications/view/:id" element={<AidApplicationView />} />
                                 <Route path="/dms/aid/people/list" element={<AidPeopleList />} />
                                 <Route path="/dms/aid/people/view/:id" element={<AidPersonView />} />

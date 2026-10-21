@@ -1,5 +1,14 @@
-const DB_NAME = 'mtjf_dms_offline';
 const DB_VERSION = 1;
+
+function tenantDbName() {
+  try {
+    const raw = localStorage.getItem('user_data');
+    const tenantId = raw ? JSON.parse(raw).tenant_id : null;
+    return `mtjf_dms_offline_t${tenantId || 0}`;
+  } catch {
+    return 'mtjf_dms_offline_t0';
+  }
+}
 
 const STORES = {
   donors: 'donors',
@@ -9,11 +18,14 @@ const STORES = {
 };
 
 let dbPromise = null;
+let openName = null;
 
 function openDb() {
-  if (dbPromise) return dbPromise;
+  const name = tenantDbName();
+  if (dbPromise && openName === name) return dbPromise;
+  openName = name;
   dbPromise = new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(name, DB_VERSION);
     req.onerror = () => reject(req.error);
     req.onsuccess = () => resolve(req.result);
     req.onupgradeneeded = (e) => {

@@ -1,4 +1,5 @@
 import React from 'react';
+import { toast } from 'react-toastify';
 
 const STATUSES = [
   { value: 'verified', label: 'Verified' },
@@ -96,32 +97,116 @@ export const mergeInvestigationState = (items = [], saved = {}) => {
   return base;
 };
 
-export const isInvestigationComplete = (items = [], state = {}) =>
-  (items || []).every((item) => {
-    const entry = normalizeInvestigationEntry(
-      state[item.key] ??
-        (item.key === 'site_visit' ? state.home_visited : undefined),
-    );
-    if (item.accepts_file) {
+/**
+ * Re-attach file URLs for process items (e.g. Site Visit) from application
+ * attachments when the saved checklist lost attachment_url after a reload.
+ */
+export const enrichInvestigationFromAttachments = (
+  items = [],
+  state = {},
+  attachments = [],
+) => {
+  const list = Array.isArray(attachments) ? attachments : [];
+  if (!list.length) return state;
+  const next = { ...state };
+  for (const item of items || []) {
+    if (!item?.accepts_file) continue;
+    const prev = normalizeInvestigationEntry(next[item.key]);
+    if (String(prev.attachment_url || '').trim()) continue;
+    const match = list.find((a) => {
+      const ctx = String(a?.context || '').toLowerCase();
+      const desc = String(a?.description || '').toLowerCase();
+      const key = String(item.key || '').toLowerCase();
       return (
-        entry.status === 'verified' &&
-        String(entry.attachment_url || '').trim().length > 0
+        ctx === key ||
+        desc === key ||
+        (key === 'site_visit' &&
+          (ctx === 'site_visit' || desc === 'site_visit' || desc === 'home_visited'))
       );
-    }
-    const allowMismatch = item.allow_mismatch !== false && item.kind !== 'process';
-    if (!allowMismatch) return entry.status === 'verified';
-    if (!item.required) {
-      if (entry.status === 'mismatch') {
-        return String(entry.note || '').trim().length >= 3;
-      }
-      return true;
-    }
-    if (entry.status === 'verified') return true;
+    });
+    if (!match?.file_url) continue;
+    next[item.key] = {
+      ...prev,
+      status: prev.status === 'not_checked' ? 'verified' : prev.status,
+      attachment_url: match.file_url || '',
+      attachment_name: match.file_name || '',
+      attachment_id: match.id ?? null,
+    };
+  }
+  return next;
+};
+
+const investigationEntryFor = (item, state = {}) =>
+  normalizeInvestigationEntry(
+    state[item.key] ??
+      (item.key === 'site_visit' ? state.home_visited : undefined),
+  );
+
+const hasFoundNote = (entry) => String(entry?.note || '').trim().length >= 3;
+
+export const isInvestigationItemComplete = (item, state = {}) => {
+  const entry = investigationEntryFor(item, state);
+  const processItem = item.kind === 'process';
+  if (item.accepts_file) {
+    return (
+      entry.status === 'verified' &&
+      String(entry.attachment_url || '').trim().length > 0 &&
+      (!processItem || hasFoundNote(entry))
+    );
+  }
+  const allowMismatch =
+    item.allow_mismatch !== false && item.kind !== 'process';
+  if (!allowMismatch) {
+    return entry.status === 'verified' && (!processItem || hasFoundNote(entry));
+  }
+  if (!item.required) {
     if (entry.status === 'mismatch') {
-      return String(entry.note || '').trim().length >= 3;
+      return hasFoundNote(entry);
     }
-    return false;
-  });
+    return true;
+  }
+  if (entry.status === 'verified') return true;
+  if (entry.status === 'mismatch') {
+    return hasFoundNote(entry);
+  }
+  return false;
+};
+
+export const isInvestigationComplete = (items = [], state = {}) =>
+  (items || []).every((item) => isInvestigationItemComplete(item, state));
+
+/** Human-readable gaps blocking Submit report. */
+export const getInvestigationIncompleteReasons = (items = [], state = {}) => {
+  const reasons = [];
+  for (const item of items || []) {
+    if (isInvestigationItemComplete(item, state)) continue;
+    const entry = investigationEntryFor(item, state);
+    if (item.accepts_file) {
+      if (entry.status !== 'verified') {
+        reasons.push(`${item.label}: mark Verified and attach a file`);
+      } else if (!String(entry.attachment_url || '').trim()) {
+        reasons.push(`${item.label}: attach a site-visit photo/file`);
+      } else if (item.kind === 'process' && !hasFoundNote(entry)) {
+        reasons.push(`${item.label}: add a Found note (min 3 characters)`);
+      }
+      continue;
+    }
+    if (item.kind === 'process') {
+      if (entry.status !== 'verified') {
+        reasons.push(`${item.label}: must be Verified (Field process tab)`);
+      } else {
+        reasons.push(`${item.label}: add a Found note (min 3 characters)`);
+      }
+      continue;
+    }
+    if (entry.status === 'mismatch') {
+      reasons.push(`${item.label}: add a Found note (min 3 characters)`);
+    } else {
+      reasons.push(`${item.label}: mark Verified or Mismatch`);
+    }
+  }
+  return reasons;
+};
 
 export const isRecommendationComplete = (rec = {}) => {
   const remarks = String(rec.remarks || '').trim();
@@ -180,17 +265,24 @@ export const resolveInvestigationSection = (item) => {
 };
 
 /**
- * Case tab → all items. Other tabs → section-matched claims only (no process).
+ * Case tab → declared claims only (no process).
+ * Field process tab → process checks only.
+ * Other tabs → section-matched claims only (no process).
  * Attachments → none.
  * Beneficiary tab also shows family-head identity when there is no separate
  * beneficiary identity (single-person household).
  */
 export const filterInvestigationItemsByTab = (items = [], tab = 'case') => {
   const list = Array.isArray(items) ? items : [];
-  if (!tab || tab === 'case') return list;
   if (tab === 'attachments') return [];
+  if (tab === 'field_process') {
+    return list.filter((item) => item.kind === 'process');
+  }
+  if (!tab || tab === 'case') {
+    return list.filter((item) => item.kind !== 'process');
+  }
   const section = TAB_TO_SECTION[tab];
-  if (!section) return list;
+  if (!section) return list.filter((item) => item.kind !== 'process');
   const hasBeneficiaryIdentity = list.some(
     (i) => i.key === 'identity_of_beneficiary',
   );
@@ -214,7 +306,11 @@ export const filterInvestigationItemsByTab = (items = [], tab = 'case') => {
 const TAB_INVEST_COPY = {
   case: {
     title: 'Verify what was declared',
-    hint: 'Full investigation checklist for this case. A mismatch needs a Found note.',
+    hint: 'Declared claims for this case. A mismatch needs a Found note.',
+  },
+  field_process: {
+    title: 'Field process',
+    hint: 'Site visit and field checks — mark Verified and add a Found note for each item.',
   },
   beneficiary: {
     title: 'Verify beneficiary claims',
@@ -237,7 +333,7 @@ const AidInvestigationPanel = ({
   disabled = false,
   title,
   hint,
-  /** View tab id: case | beneficiary | family | writer | attachments */
+  /** View tab id: case | field_process | beneficiary | family | writer | attachments */
   activeTab = 'case',
   vulnerability = null,
   recommendation = null,
@@ -246,16 +342,18 @@ const AidInvestigationPanel = ({
   submitDisabled = false,
   submitLabel = 'Submit report for approval',
   showRecommendation,
+  /** Save checklist/recommendation draft without submitting for CEO */
+  onSaveProgress,
+  saveProgressDisabled = false,
+  saveProgressLabel = 'Save progress',
+  saveProgressBusy = false,
   /** Special permission: show “mark all verified” for the visible checklist */
   canBulkVerify = false,
   /** Upload handler for items with accepts_file (e.g. Site Visit) */
   onUploadItemFile,
   uploadingKey = null,
 }) => {
-  const filtered = filterInvestigationItemsByTab(items, activeTab);
-  const list = filtered;
-  const claims = list.filter((i) => i.kind !== 'process');
-  const process = list.filter((i) => i.kind === 'process');
+  const list = filterInvestigationItemsByTab(items, activeTab);
   const copy = TAB_INVEST_COPY[activeTab] || TAB_INVEST_COPY.case;
   const panelTitle = title ?? copy.title;
   const panelHint = hint ?? copy.hint;
@@ -266,9 +364,7 @@ const AidInvestigationPanel = ({
 
   const allVisibleVerified =
     list.length > 0 &&
-    list.every(
-      (item) => normalizeInvestigationEntry(value[item.key]).status === 'verified',
-    );
+    list.every((item) => isInvestigationItemComplete(item, value));
 
   const setEntry = (key, next) => {
     onChange({
@@ -283,15 +379,33 @@ const AidInvestigationPanel = ({
   const setAllVisibleStatus = (status) => {
     if (!list.length || !onChange) return;
     const next = { ...value };
+    let skippedFileItems = 0;
     for (const item of list) {
       const prev = normalizeInvestigationEntry(value[item.key]);
+      // Site Visit (etc.) cannot be bulk-verified without an attached file.
+      if (
+        status === 'verified' &&
+        item.accepts_file &&
+        !String(prev.attachment_url || '').trim()
+      ) {
+        skippedFileItems += 1;
+        continue;
+      }
       next[item.key] = {
         ...prev,
         status,
-        note: status === 'mismatch' ? prev.note : '',
+        // Field process keeps Found notes across statuses; claims clear unless mismatch
+        note:
+          item.kind === 'process' || status === 'mismatch' ? prev.note : '',
       };
     }
     onChange(next);
+    if (skippedFileItems > 0) {
+      toast.warning(
+        `${skippedFileItems} item(s) need a file attach (e.g. Site Visit) before they can be Verified.`,
+      );
+    }
+    return skippedFileItems;
   };
 
   const setRec = (patch) => {
@@ -309,11 +423,14 @@ const AidInvestigationPanel = ({
 
   const renderRow = (item) => {
     const entry = normalizeInvestigationEntry(value[item.key]);
+    const processItem = item.kind === 'process';
     const allowMismatch =
       item.allow_mismatch !== false && item.kind !== 'process';
     const statuses = allowMismatch
       ? STATUSES
       : STATUSES.filter((s) => s.value !== 'mismatch');
+    // Field process: Found note always visible for every status
+    const showFoundInput = processItem || entry.status === 'mismatch';
 
     return (
       <div
@@ -339,10 +456,13 @@ const AidInvestigationPanel = ({
               Process check — confirm on site
             </div>
           )}
-          {entry.status === 'mismatch' && entry.note ? (
+          {!processItem &&
+          entry.status === 'mismatch' &&
+          entry.note &&
+          disabled ? (
             <div className="aid-invest-row__found">Found: {entry.note}</div>
           ) : null}
-          {entry.status === 'mismatch' && !disabled ? (
+          {showFoundInput ? (
             <label className="aid-invest-row__note">
               <span>Found (required)</span>
               <textarea
@@ -351,7 +471,10 @@ const AidInvestigationPanel = ({
                 disabled={disabled}
                 placeholder="What did you find on site?"
                 onChange={(e) =>
-                  setEntry(item.key, { status: 'mismatch', note: e.target.value })
+                  setEntry(item.key, {
+                    ...(processItem ? {} : { status: 'mismatch' }),
+                    note: e.target.value,
+                  })
                 }
               />
             </label>
@@ -419,7 +542,8 @@ const AidInvestigationPanel = ({
               onClick={() =>
                 setEntry(item.key, {
                   status: s.value,
-                  note: s.value === 'mismatch' ? entry.note : '',
+                  note:
+                    processItem || s.value === 'mismatch' ? entry.note : '',
                 })
               }
             >
@@ -438,8 +562,9 @@ const AidInvestigationPanel = ({
     return (
       <section className="aid-investigation aid-investigation--tab">
         <p className="aid-section-hint">
-          No investigation claims for this tab. Open Case details for the full
-          checklist.
+          {activeTab === 'field_process'
+            ? 'No field process checks for this application.'
+            : 'No investigation claims for this tab. Open Case details or Field process for the checklist.'}
         </p>
       </section>
     );
@@ -456,47 +581,50 @@ const AidInvestigationPanel = ({
                 <p className="aid-investigation__hint">{panelHint}</p>
               ) : null}
             </div>
-            {canBulkVerify && list.length > 0 ? (
-              <label
-                className={`aid-invest-bulk${
-                  allVisibleVerified ? ' is-checked' : ''
-                }${disabled ? ' is-disabled' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={allVisibleVerified}
-                  disabled={disabled}
-                  onChange={(e) =>
-                    setAllVisibleStatus(
-                      e.target.checked ? 'verified' : 'not_checked',
-                    )
-                  }
-                />
-                <span>
-                  <strong>Mark all verified</strong>
-                  <small>Updates every item on this tab</small>
-                </span>
-              </label>
-            ) : null}
+            <div className="aid-investigation__head-actions">
+              {!disabled && onSaveProgress ? (
+                <button
+                  type="button"
+                  className="aid-invest-save"
+                  disabled={saveProgressDisabled || saveProgressBusy}
+                  onClick={onSaveProgress}
+                >
+                  {saveProgressBusy ? 'Saving…' : saveProgressLabel}
+                </button>
+              ) : null}
+              {canBulkVerify && list.length > 0 ? (
+                <label
+                  className={`aid-invest-bulk${
+                    allVisibleVerified ? ' is-checked' : ''
+                  }${disabled ? ' is-disabled' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={allVisibleVerified}
+                    disabled={disabled}
+                    onChange={(e) =>
+                      setAllVisibleStatus(
+                        e.target.checked ? 'verified' : 'not_checked',
+                      )
+                    }
+                  />
+                  <span>
+                    <strong>Mark all verified</strong>
+                    <small>Updates every item on this tab</small>
+                  </span>
+                </label>
+              ) : null}
+            </div>
           </div>
 
           {!list.length ? (
             <p className="aid-section-hint">
-              No investigation claims for this tab. Open Case details for the
-              full checklist.
+              {activeTab === 'field_process'
+                ? 'No field process checks for this application.'
+                : 'No investigation claims for this tab. Open Case details or Field process for the checklist.'}
             </p>
           ) : (
-            <>
-              {claims.length > 0 ? (
-                <div className="aid-invest-list">{claims.map(renderRow)}</div>
-              ) : null}
-              {process.length > 0 ? (
-                <>
-                  <h4 className="aid-investigation__sub">Field process</h4>
-                  <div className="aid-invest-list">{process.map(renderRow)}</div>
-                </>
-              ) : null}
-            </>
+            <div className="aid-invest-list">{list.map(renderRow)}</div>
           )}
         </div>
 
@@ -615,6 +743,17 @@ const AidInvestigationPanel = ({
                   onChange={(e) => setRec({ remarks: e.target.value })}
                 />
               </label>
+
+              {!disabled && onSaveProgress ? (
+                <button
+                  type="button"
+                  className="aid-rec-save"
+                  disabled={saveProgressDisabled || saveProgressBusy}
+                  onClick={onSaveProgress}
+                >
+                  {saveProgressBusy ? 'Saving…' : saveProgressLabel}
+                </button>
+              ) : null}
 
               {!disabled && onSubmitReport ? (
                 <button

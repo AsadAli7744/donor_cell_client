@@ -48,6 +48,7 @@ import {
   FiSend,
   FiCoffee,
   FiSearch,
+  FiEdit,
 } from 'react-icons/fi';
 import { BiSolidDonateHeart } from 'react-icons/bi';
 import { departments } from '../../../utils/admin';
@@ -275,6 +276,14 @@ const programDepartmentItems = (isUser = false) => [
   },
   {
     label: 'Data Entry',
+    path: '/dms/aid/applications/drafts/list',
+    type: 'list',
+    module: 'aid_drafts',
+    permissionDepartment: 'program',
+    icon: FiEdit,
+  },
+  {
+    label: 'Applications',
     path: '/dms/aid/applications/entry/list',
     type: 'list',
     module: 'aid_applications',
@@ -282,10 +291,10 @@ const programDepartmentItems = (isUser = false) => [
     icon: FiClipboard,
   },
   {
-    label: 'Case Review',
+    label: 'Verification Process',
     path: '/dms/aid/applications/list',
     type: 'list',
-    module: 'aid_applications',
+    module: 'aid_verification',
     permissionDepartment: 'program',
     icon: FiLifeBuoy,
   },

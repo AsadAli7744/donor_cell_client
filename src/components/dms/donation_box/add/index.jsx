@@ -13,10 +13,12 @@ import {
   validateCollectionRadiusMeters,
 } from '../../../../utils/geolocation';
 import { useAuth } from '../../../../context/AuthContext';
+import { useDonationBoxLabels } from '../shared/donationBoxFieldLabels';
 
 const AddDonationBox = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { labels, place } = useDonationBoxLabels();
   const [form, setForm] = useState({
     // Box identification
     key_no: '',
@@ -282,7 +284,7 @@ const AddDonationBox = () => {
             <div className="form-grid-2">
 
               <FormInput
-                label="Key Number"
+                label={labels.key_no}
                 type="text"
                 name="key_no"
                 value={form.key_no}
@@ -295,7 +297,7 @@ const AddDonationBox = () => {
           <div className="form-section">
             <div className="form-grid-2">
               <FormSelect
-                label="Box Type"
+                label={labels.box_type}
                 name="box_type"
                 value={form.box_type}
                 onChange={handleChange}
@@ -304,7 +306,7 @@ const AddDonationBox = () => {
               />
 
               <FormSelect
-                label="Collection Frequency"
+                label={labels.frequency}
                 name="collection_frequency"
                 value={form.collection_frequency}
                 onChange={handleChange}
@@ -362,7 +364,7 @@ const AddDonationBox = () => {
               />
 
               <FormInput
-                label="Landmark / Marketplace"
+                label={labels.landmark_marketplace}
                 type="text"
                 name="landmark_marketplace"
                 value={form.landmark_marketplace}
@@ -415,10 +417,10 @@ const AddDonationBox = () => {
 
           {/* Shop Details */}
           <div className="form-section">
-            <h3 className="form-section-heading">Shop Details</h3>
+            <h3 className="form-section-heading">{place} details</h3>
             <div className="form-grid-2">
               <FormInput
-                label="Shop Name"
+                label={labels.shop_name}
                 type="text"
                 name="shop_name"
                 value={form.shop_name}
@@ -428,7 +430,7 @@ const AddDonationBox = () => {
               />
 
               <FormInput
-                label="Shopkeeper Name"
+                label={labels.shopkeeper}
                 type="text"
                 name="shopkeeper"
                 value={form.shopkeeper}
@@ -437,7 +439,7 @@ const AddDonationBox = () => {
               />
 
               <FormInput
-                label="Cell Number"
+                label={labels.cell_no}
                 type="tel"
                 name="cell_no"
                 value={form.cell_no}

@@ -9,6 +9,18 @@ const AuthContext = createContext(null);
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [permissions, setPermissions] = useState(null);
+  const [entitlements, setEntitlements] = useState(null);
+
+  const storeEntitlements = (next) => {
+    if (!next) return;
+    setEntitlements(next);
+    localStorage.setItem('tenant_entitlements', JSON.stringify(next));
+  };
+
+  const clearEntitlements = () => {
+    setEntitlements(null);
+    localStorage.removeItem('tenant_entitlements');
+  };
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const isCheckingRef = useRef(false);
@@ -17,15 +29,20 @@ export const AuthProvider = ({ children }) => {
   const restoreSessionFromStorage = () => {
     const storedUser = localStorage.getItem('user_data');
     const storedPermissions = localStorage.getItem('user_permissions');
+    const storedEntitlements = localStorage.getItem('tenant_entitlements');
     if (!storedUser) {
       setUser(null);
       setPermissions(null);
+      clearEntitlements();
       return false;
     }
     try {
       setUser(JSON.parse(storedUser));
       if (storedPermissions) {
         setPermissions(JSON.parse(storedPermissions));
+      }
+      if (storedEntitlements) {
+        setEntitlements(JSON.parse(storedEntitlements));
       }
       lastAuthCheckRef.current = Date.now();
       return true;
@@ -35,6 +52,7 @@ export const AuthProvider = ({ children }) => {
       setPermissions(null);
       localStorage.removeItem('user_data');
       localStorage.removeItem('user_permissions');
+      localStorage.removeItem('tenant_entitlements');
       localStorage.removeItem('jwt_token');
       return false;
     }
@@ -71,6 +89,9 @@ export const AuthProvider = ({ children }) => {
             } else if (storedPermissions) {
               // Fallback to stored permissions if backend doesn't return them
               setPermissions(JSON.parse(storedPermissions));
+            }
+            if (response.data.entitlements) {
+              storeEntitlements(response.data.entitlements);
             }
           } else {
             throw new Error('No user data in response');
@@ -168,6 +189,9 @@ export const AuthProvider = ({ children }) => {
                 console.log('User permissions in auth context: ', response.data.permissions);
                 localStorage.setItem('user_permissions', JSON.stringify(response.data.permissions));
               }
+              if (response.data.entitlements) {
+                storeEntitlements(response.data.entitlements);
+              }
             } else {
               // Session expired, clear and redirect
               setUser(null);
@@ -245,6 +269,9 @@ export const AuthProvider = ({ children }) => {
           setPermissions(response.data.permissions);
           localStorage.setItem('user_permissions', JSON.stringify(response.data.permissions));
         }
+        if (response.data.entitlements) {
+          storeEntitlements(response.data.entitlements);
+        }
         
         // Redirect to user's department main page
         const userDepartment = response.data.user.department;
@@ -285,6 +312,7 @@ export const AuthProvider = ({ children }) => {
       setPermissions(null);
       localStorage.removeItem('user_data');
       localStorage.removeItem('user_permissions');
+      localStorage.removeItem('tenant_entitlements');
       localStorage.removeItem('jwt_token');
       lastAuthCheckRef.current = null;
       clearAllPersistedFilters();
@@ -364,7 +392,7 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, permissions, loading, login, logout, checkAuth, hasAnyPermission }}>
+    <AuthContext.Provider value={{ user, permissions, entitlements, loading, login, logout, checkAuth, hasAnyPermission }}>
       {children}
     </AuthContext.Provider>
   );

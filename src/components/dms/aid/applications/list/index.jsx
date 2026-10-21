@@ -48,6 +48,8 @@ const AidApplicationsList = () => {
     hasAidPermission(permissions, 'aid_applications', 'deliver');
 
   const canList =
+    canViewModule(permissions, 'program', 'aid_verification') ||
+    hasAidPermission(permissions, 'aid_verification', 'list_view') ||
     canViewModule(permissions, 'program', 'aid_applications') ||
     canCeo ||
     canDeliver ||

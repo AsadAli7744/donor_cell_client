@@ -39,7 +39,10 @@ const AidUserAssignField = ({
           onClick={() => onChange(toAssignableAidUser(user))}
           style={{
             padding: '10px 12px',
-            borderBottom: index < list.length - 1 ? '1px solid #eee' : 'none',
+            borderBottom:
+              Array.isArray(list) && index < list.length - 1
+                ? '1px solid #eee'
+                : 'none',
             cursor: 'pointer',
           }}
         >

@@ -8,8 +8,9 @@ import {
   formatAuditActor,
   formatAuditValue,
 } from '../../../common/audit/auditHistoryLabels';
+import { useDonationBoxLabels } from './donationBoxFieldLabels';
 
-const renderRelocationMetadata = (entry) => {
+const renderRelocationMetadata = (entry, labels) => {
   if (entry.action !== 'shop_relocated' || !entry.metadata) return null;
 
   const { previous_shop: prev, new_shop: next, relocation_note: note } = entry.metadata;
@@ -35,15 +36,15 @@ const renderRelocationMetadata = (entry) => {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div>
           <div style={{ fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>Previous</div>
-          {row('Shop', prev?.shop_name)}
-          {row('Shopkeeper', prev?.shopkeeper)}
+          {row(labels.shop_name, prev?.shop_name)}
+          {row(labels.shopkeeper, prev?.shopkeeper)}
           {row('Route', prev?.route_name)}
           {row('City', prev?.city_name)}
         </div>
         <div>
           <div style={{ fontWeight: 600, marginBottom: '6px', fontSize: '13px' }}>New</div>
-          {row('Shop', next?.shop_name)}
-          {row('Shopkeeper', next?.shopkeeper)}
+          {row(labels.shop_name, next?.shop_name)}
+          {row(labels.shopkeeper, next?.shopkeeper)}
           {row('Route', next?.route_name)}
           {row('City', next?.city_name)}
         </div>
@@ -58,6 +59,7 @@ const renderRelocationMetadata = (entry) => {
 };
 
 const DonationBoxAuditHistory = ({ donationBoxId, refreshKey = 0 }) => {
+  const { labels } = useDonationBoxLabels();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -97,11 +99,11 @@ const DonationBoxAuditHistory = ({ donationBoxId, refreshKey = 0 }) => {
       getActionLabel={(a) => DONATION_BOX_AUDIT_ACTION_LABELS[a] || a}
       getSourceLabel={(s) => DONATION_BOX_AUDIT_SOURCE_LABELS[s] || s}
       getFieldLabel={(f) =>
-        DONATION_BOX_AUDIT_FIELD_LABELS[f] || f.replace(/_/g, ' ')
+        labels[f] || DONATION_BOX_AUDIT_FIELD_LABELS[f] || f.replace(/_/g, ' ')
       }
       formatActor={formatAuditActor}
       formatValue={formatAuditValue}
-      renderEntryExtra={renderRelocationMetadata}
+      renderEntryExtra={(entry) => renderRelocationMetadata(entry, labels)}
     />
   );
 };

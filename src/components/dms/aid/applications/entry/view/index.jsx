@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import axiosInstance from '../../../../../../utils/axios';
+import { useAuth } from '../../../../../../context/AuthContext';
+import { hasAidPermission } from '../../../../../../utils/permissions';
 import Navbar from '../../../../../Navbar';
 import PageHeader from '../../../../../common/PageHeader';
 import AidEducationApplicationFields from '../../../shared/AidEducationApplicationFields';
@@ -13,6 +15,8 @@ import AidPersonProfileCard, {
   AidFamilyMemberLine,
   Fact,
 } from '../../../shared/AidPersonProfileCard';
+import AidFamilyTreePanel from '../../../shared/AidFamilyTreePanel';
+import AidUserAssignField from '../../../shared/AidUserAssignField';
 import {
   aidStatusTone,
   formatAidStatus,
@@ -32,11 +36,29 @@ const isSponsorshipDependent = (notes) =>
 const AidEntryApplicationView = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const fromDrafts = location.pathname.includes('/drafts/');
+  const listPath = fromDrafts
+    ? '/dms/aid/applications/drafts/list'
+    : '/dms/aid/applications/entry/list';
+  const { permissions } = useAuth();
+  const isStaffElevated =
+    !!permissions?.super_admin ||
+    !!permissions?.program_manager ||
+    !!permissions?.fund_raising_manager;
+  const canApproveDraft =
+    hasAidPermission(permissions, 'aid_drafts', 'approve_draft') ||
+    hasAidPermission(permissions, 'aid_applications', 'approve_draft') ||
+    isStaffElevated;
+
   const [app, setApp] = useState(null);
   const [familyTree, setFamilyTree] = useState(null);
   const [kinship, setKinship] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [approving, setApproving] = useState(false);
+  const [assignUser, setAssignUser] = useState(null);
+  const [showApprovePanel, setShowApprovePanel] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -75,6 +97,32 @@ const AidEntryApplicationView = () => {
     load();
   }, [load]);
 
+  const approveDraft = async () => {
+    if (!canApproveDraft || !app?.id) return;
+    if (!assignUser?.id) {
+      setError('Select a program department user to assign before approving.');
+      setShowApprovePanel(true);
+      return;
+    }
+    try {
+      setApproving(true);
+      setError('');
+      const res = await axiosInstance.post(
+        `/aid/applications/${app.id}/approve-draft`,
+        { assigned_to_user_id: Number(assignUser.id) },
+      );
+      setApp(res.data?.data || app);
+      setShowApprovePanel(false);
+      setAssignUser(null);
+    } catch (err) {
+      setError(
+        err.response?.data?.message || 'Failed to approve draft application',
+      );
+    } finally {
+      setApproving(false);
+    }
+  };
+
   if (loading) {
     return (
       <>
@@ -92,9 +140,9 @@ const AidEntryApplicationView = () => {
         <Navbar />
         <div className="form-content aid-view">
           <PageHeader
-            title="Application entry"
-            backPath="/dms/aid/applications/entry/list"
-            onBackClick={() => navigate('/dms/aid/applications/entry/list')}
+            title={fromDrafts ? 'Draft' : 'Application entry'}
+            backPath={listPath}
+            onBackClick={() => navigate(listPath)}
             showAdd={false}
           />
           <div className="error-message">{error || 'Application not found'}</div>
@@ -137,14 +185,18 @@ const AidEntryApplicationView = () => {
       <div className="form-content aid-view aid-entry-view">
         <PageHeader
           title={app.application_no}
-          backPath="/dms/aid/applications/entry/list"
-          onBackClick={() => navigate('/dms/aid/applications/entry/list')}
+          backPath={listPath}
+          onBackClick={() => navigate(listPath)}
           showAdd={false}
         />
 
         <div className="aid-hero">
           <div>
-            <p className="aid-entry-view__eyebrow">Data entry record</p>
+            <p className="aid-entry-view__eyebrow">
+              {status === 'draft'
+                ? 'Draft — approve to enter verification'
+                : 'Beneficiary registration record'}
+            </p>
             <h2 style={{ margin: '0 0 6px' }}>
               {app.title || 'Aid application'}
             </h2>
@@ -160,17 +212,76 @@ const AidEntryApplicationView = () => {
             >
               {formatAidStatus(status)}
             </span>
-            <button
-              type="button"
-              className="secondary-btn"
-              onClick={() =>
-                navigate(`/dms/aid/applications/view/${app.id}`)
-              }
-            >
-              Open case review
-            </button>
+            {status !== 'rejected' && status !== 'delivered' ? (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  navigate(`/dms/aid/applications/edit/${app.id}`)
+                }
+              >
+                Edit
+              </button>
+            ) : null}
+            {canApproveDraft && status === 'draft' ? (
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={approving}
+                onClick={() => {
+                  setShowApprovePanel(true);
+                  setError('');
+                }}
+              >
+                Approve for verification
+              </button>
+            ) : null}
+            {status !== 'draft' ? (
+              <button
+                type="button"
+                className="secondary-btn"
+                onClick={() =>
+                  navigate(`/dms/aid/applications/view/${app.id}`)
+                }
+              >
+                Open verification process
+              </button>
+            ) : null}
           </div>
         </div>
+
+        {canApproveDraft && status === 'draft' && showApprovePanel ? (
+          <div className="aid-panel" style={{ marginBottom: 16, padding: 16 }}>
+            <h3 style={{ marginTop: 0 }}>Approve draft</h3>
+            <AidUserAssignField
+              label="Assign to program user"
+              value={assignUser}
+              onChange={setAssignUser}
+              hint="Required — pick a user from the program department who will own this case."
+            />
+            <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              <button
+                type="button"
+                className="primary-btn"
+                disabled={approving || !assignUser?.id}
+                onClick={approveDraft}
+              >
+                {approving ? 'Approving…' : 'Approve & assign'}
+              </button>
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={approving}
+                onClick={() => {
+                  setShowApprovePanel(false);
+                  setAssignUser(null);
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <section className="aid-entry-section">
           <h3 className="aid-entry-section__title">Application</h3>
@@ -211,6 +322,16 @@ const AidEntryApplicationView = () => {
                 app.writer.id === app.beneficiary?.id ||
                 String(app.writer_relation || '').toLowerCase() === 'self',
             }}
+          />
+        </section>
+
+        <section className="aid-entry-section">
+          <h3 className="aid-entry-section__title">Family Tree</h3>
+          <AidFamilyTreePanel
+            apiTree={familyTree}
+            rootPerson={app.beneficiary}
+            showHeader={false}
+            emptyHint="No linked family tree for this beneficiary yet."
           />
         </section>
 
